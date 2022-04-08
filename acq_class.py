@@ -1240,22 +1240,35 @@ class PostSynapticEvent():
             self.array_end = end
         self.event_array = y_array[self.array_start:self.array_end]
         self.x_array = np.arange(self.array_start, self.array_end)
-        # return (self.x_array, self.event_array, self.array_start,
-        #         self.array_end)
     
     
     def find_peak(self):
-        x = signal.argrelextrema(self.event_array, comparator = np.less,
-                          order=int(3*self.s_r_c))
-        peaks = x[0]
-        peaks = peaks[peaks > 1*self.s_r_c]
-        if len(peaks) == 0:
+        peaks_1 = signal.argrelextrema(self.event_array, comparator = np.less,
+                          order=int(3*self.s_r_c))[0]
+        peaks_1 = peaks_1[peaks_1 > 1*self.s_r_c]
+        
+        
+        
+        if len(peaks_1) == 0:
             self.event_peak_x = np.nan
             self.event_peak_y = np.nan
         else:
-            self.event_peak_x = self.x_array[peaks[0]]
-            self.event_peak_y = self.event_array[peaks[0]]
-        # return self.event_peak_y, self.event_peak_x
+            peak_1 = peaks_1[0]
+            peaks_2 = signal.argrelextrema(self.event_array[:peak_1],
+                              comparator = np.less,
+                              order=int(.4*self.s_r_c))[0]
+            peaks_2 = peaks_2[peaks_2 > peak_1-4*self.s_r_c]
+            if len(peaks_2) == 0:
+                final_peak = peak_1
+            else:
+                peaks_3 = peaks_2[self.event_array[peaks_2]
+                                  < 0.85*self.event_array[peak_1]]
+                if len(peaks_3) == 0:
+                    final_peak = peak_1
+                else:
+                    final_peak = peaks_3[0]
+            self.event_peak_x = self.x_array[int(final_peak)]
+            self.event_peak_y = self.event_array[int(final_peak)]
      
     
     def find_alt_baseline(self):

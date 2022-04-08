@@ -6,6 +6,7 @@ Last updated on Wed Feb 16 12:33:00 2021
 
 @author: LarsNelson
 """
+from copy import deepcopy
 from glob import glob
 import json
 
@@ -114,7 +115,7 @@ class MiniSaveWorker(QRunnable):
     @pyqtSlot()
     def run(self):
         for i, key in enumerate(self.dictionary.keys()):
-            x = self.dictionary[key]
+            x = deepcopy(self.dictionary[key])
             x.save_postsynaptic_events()
             with open(f"{self.save_filename}_{x.name}.json", "w") as write_file:
                 json.dump(x.__dict__, write_file, cls=NumpyEncoder)

@@ -16,9 +16,10 @@ import numpy as np
 import pandas as pd
 from PyQt5.QtWidgets import (QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout,
                              QWidget, QLabel, QFormLayout, QComboBox, QSpinBox,
-                             QCheckBox, QProgressBar, QMessageBox, QTabWidget)
+                             QCheckBox, QProgressBar, QMessageBox, QTabWidget,
+                             QScrollArea, QSizePolicy)
 from PyQt5.QtGui import QIntValidator, QKeySequence, QShortcut
-from PyQt5.QtCore import QThreadPool
+from PyQt5.QtCore import QThreadPool, Qt
 import pyqtgraph as pg
 
 from acq_class import MiniAnalysis, LoadMiniAnalysis
@@ -42,28 +43,48 @@ class miniAnalysisWidget(QWidget):
         self.tab_widget = QTabWidget()
         self.main_layout.addWidget(self.tab_widget)
         
-        self.tab1 = QWidget(parent=None)
+        self.tab1_scroll = QScrollArea()
+        self.tab1_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.tab1_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.tab1_scroll.setWidgetResizable(True)
+        
+        self.tab1 = QWidget()
+        self.tab1_scroll.setWidget(self.tab1)
         self.tab2 = QWidget()
         self.tab3 = QWidget()
         
-        self.tab_widget.addTab(self.tab1, 'Setup')
+        self.tab_widget.addTab(self.tab1_scroll, 'Setup')
         self.tab_widget.addTab(self.tab2, 'Analysis')
         self.tab_widget.addTab(self.tab3, 'Final data')
         
         self.setStyleSheet('''QTabWidget::tab-bar 
                                           {alignment: left;}''')
-                                          
-        #Tab 1 layouts                                 
-        self.tab1_layout = QVBoxLayout()
+        
+                                            
+        self.pbar = QProgressBar(self)
+        self.pbar.setValue(0)
+        self.main_layout.addWidget(self.pbar)
+        
+        
+        #Tab 1 layouts
         self.setup_layout = QHBoxLayout()
+        self.extra_layout = QVBoxLayout()
+        self.other_layout = QHBoxLayout()
         self.input_layout = QFormLayout()
+        self.input_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldsStayAtSizeHint)
         self.settings_layout = QFormLayout()
+        self.settings_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldsStayAtSizeHint)
         self.template_form = QFormLayout()
-        self.tab1.setLayout(self.tab1_layout)
-        self.tab1_layout.addLayout(self.setup_layout, 0)
+        self.template_form.setFieldGrowthPolicy(
+            QFormLayout.FieldsStayAtSizeHint)
+        self.tab1.setLayout(self.setup_layout)
         self.setup_layout.addLayout(self.input_layout, 0)
-        self.setup_layout.addLayout(self.settings_layout, 0)
-        self.setup_layout.addLayout(self.template_form, 0)
+        self.setup_layout.addLayout(self.extra_layout, 0)
+        self.extra_layout.addLayout(self.other_layout, 0)
+        self.other_layout.addLayout(self.settings_layout, 0)
+        self.other_layout.addLayout(self.template_form, 0)
         
         #Tab 2 layouts
         self.plot_layout = QVBoxLayout()
@@ -330,17 +351,27 @@ class miniAnalysisWidget(QWidget):
         self.analyze_acq_button = QPushButton('Analyze acquisitions')
         self.input_layout.addRow(self.analyze_acq_button)
         self.analyze_acq_button.setObjectName('analyze_acq_button')
+        self.analyze_acq_button.setSizePolicy(QSizePolicy.Preferred,
+                                                QSizePolicy.Preferred)
+        self.analyze_acq_button.setMaximumWidth(230)
         self.analyze_acq_button.clicked.connect(self.analyze)
         
         self.calculate_parameters = QPushButton('Calculate Parameters')
         self.input_layout.addRow(self.calculate_parameters)
         self.calculate_parameters.setObjectName('calculate_parameters')
+        self.calculate_parameters.setSizePolicy(QSizePolicy.Preferred,
+                                                QSizePolicy.Preferred)
+        self.calculate_parameters.setMaximumWidth(230)
         self.calculate_parameters.clicked.connect(self.final_analysis)
         self.calculate_parameters.setEnabled(False)
         
         self.reset_button = QPushButton('Reset Analysis')
-        self.input_layout.addRow(self.reset_button)   
+        self.input_layout.addRow(self.reset_button)
+        self.reset_button.setSizePolicy(QSizePolicy.Preferred,
+                                                QSizePolicy.Preferred)
+        self.reset_button.setMaximumWidth(230)
         self.reset_button.clicked.connect(self.reset)
+        
         self.reset_button.setObjectName('reset_button')
         
         self.sensitivity_label = QLabel('Sensitivity')
@@ -350,10 +381,6 @@ class miniAnalysisWidget(QWidget):
         self.sensitivity_edit.setText('4')
         self.settings_layout.addRow(self.sensitivity_label,
                                  self.sensitivity_edit)
-        
-        self.pbar = QProgressBar(self)
-        self.pbar.setValue(0)
-        self.main_layout.addWidget(self.pbar)
         
         self.amp_thresh_label = QLabel('Amplitude Threshold (pA)')
         self.amp_thresh_edit = LineEdit()
@@ -396,7 +423,7 @@ class miniAnalysisWidget(QWidget):
         self.settings_layout.addRow(self.curve_fit_decay_label,
                                  self.curve_fit_decay)
         
-        self.invert_label = QLabel('Invert')
+        self.invert_label = QLabel('Invert (For positive currents)')
         self.invert_checkbox = QCheckBox(self)
         self.invert_checkbox.setObjectName('invert_checkbox')
         self.invert_checkbox.setChecked(False)
@@ -458,10 +485,13 @@ class miniAnalysisWidget(QWidget):
         self.template_button = QPushButton('Create template')
         self.template_form.addRow(self.template_button)
         self.template_button.clicked.connect(self.create_template)
+        self.template_button.setMaximumWidth(235)
         self.template_button.setObjectName('template_button')
         
         self.template_plot = pg.PlotWidget()
-        self.setup_layout.addWidget(self.template_plot, 1)
+        self.template_plot.setMinimumWidth(300)
+        self.template_plot.setMinimumHeight(300)
+        self.extra_layout.addWidget(self.template_plot, 0)
         
         self.threadpool = QThreadPool()
         
@@ -554,6 +584,7 @@ class miniAnalysisWidget(QWidget):
         self.load_files()
         if not self.file_list:
             self.file_does_not_exist()
+            self.analyze_acq_button.setEnabled(True)
         else:
             self.analysis_list = np.arange(self.start_acq_edit.toInt(),
                                       self.end_acq_edit.toInt()+1).tolist()
