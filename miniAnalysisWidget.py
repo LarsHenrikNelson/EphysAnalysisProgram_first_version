@@ -581,6 +581,8 @@ class miniAnalysisWidget(QWidget):
 
     def analyze(self):
         self.analyze_acq_button.setEnabled(False)
+        if not self.template:
+            self.create_template()
         self.load_files()
         if not self.file_list:
             self.file_does_not_exist()
@@ -795,7 +797,7 @@ class miniAnalysisWidget(QWidget):
             self.mini_rise_rate.setText(str(
                 self.round_sig(mini.rise_rate, sig=4)))
             self.mini_baseline.setText(str(
-                self.round_sig(mini.event_baseline, sig=4)))
+                self.round_sig(mini.event_start_y, sig=4)))
         else:
             self.mini_view_widget.clear()
             self.mini_amplitude.setText('')

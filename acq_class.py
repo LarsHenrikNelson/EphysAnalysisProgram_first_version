@@ -1178,8 +1178,6 @@ class MiniAnalysis(Acquisition):
                              for i in self.postsynaptic_events]
         self.peak_align_values = [i.event_peak_x - i.array_start for i in
                            self.postsynaptic_events]
-        # self.event_baselines = [value.event_baseline for value in
-        #                    self.postsynaptic_events.values()]
         self.iei = np.append(np.diff(self.event_times), np.nan) 
         self.freq = (len(self.amplitudes)
                      /(len(self.final_array)/self.sample_rate))
@@ -1275,7 +1273,6 @@ class PostSynapticEvent():
         baselined_array = self.event_array - np.mean(
             self.event_array[:int(1*self.s_r_c)])
         masked_array = baselined_array.copy()
-        # min_array = [abs(x-baseline) for x in array]
         mask = np.argwhere(baselined_array <= 0)
         masked_array[mask] = 0 
         peaks = signal.argrelmax(masked_array[0:int(
@@ -1288,7 +1285,6 @@ class PostSynapticEvent():
                 masked_array[0:int(self.event_peak_x - self.array_start)])
             self.event_start_x = self.x_array[event_start]
             self.event_start_y = self.event_array[event_start]
-        # return self.event_start_y, self.event_start_x
     
     
     def find_baseline(self):
@@ -1334,10 +1330,7 @@ class PostSynapticEvent():
         
     
     def calc_event_amplitude(self, y_array):
-        self.event_baseline = np.mean((y_array[int(self.event_start_x 
-                - (0.5 * self.s_r_c)):self.event_start_x]))
-        self.amplitude = abs(self.event_peak_y - self.event_baseline)
-        # return self.event_baseline, self.amplitude
+        self.amplitude = abs(self.event_peak_y - self.event_start_y)
     
     
     def calc_event_rise_time(self):
@@ -1381,16 +1374,16 @@ class PostSynapticEvent():
     
     
     def est_decay(self):
-        baselined_event = self.event_array - self.event_baseline
+        baselined_event = self.event_array - self.event_start_y
         return_to_baseline = int((np.argmax(
             baselined_event[self.event_peak_x-self.array_start:]
-            >= (self.event_peak_y-self.event_baseline)*.25))
+            >= (self.event_peak_y-self.event_start_y)*.25))
             + (self.event_peak_x-self.array_start))
         decay_y = self.event_array[self.event_peak_x 
                           -self.array_start:return_to_baseline]
         if decay_y.size > 0:
-            self.est_tau_y = (((self.event_peak_y - self.event_baseline)
-                          * (1 / np.exp(1))) + self.event_baseline)
+            self.est_tau_y = (((self.event_peak_y - self.event_start_y)
+                          * (1 / np.exp(1))) + self.event_start_y)
             decay_x = self.x_array[self.event_peak_x
                               - self.array_start:return_to_baseline]
             self.est_tau_x = np.interp(self.est_tau_y, decay_y, decay_x)
@@ -1400,12 +1393,11 @@ class PostSynapticEvent():
             self.est_tau_x = np.nan
             self.final_tau_x = np.nan
             self.est_tau_y = np.nan
-        # return self.est_tau_y, self.est_tau_x
     
     
     def fit_decay(self, fit_type):
         try:
-            baselined_event = self.event_array - self.event_baseline
+            baselined_event = self.event_array - self.event_start_y
             amp = self.event_peak_x - self.array_start
             upper_bounds = [0, np.inf, 0, np.inf]
             lower_bounds = [-np.inf, 0, -np.inf, 0]
@@ -1417,7 +1409,7 @@ class PostSynapticEvent():
             amp_1, self.fit_tau, amp_2, tau_2 = popt
             self.fit_decay_y = (self.db_exp(decay_x, amp_1, self.fit_tau,
                                             amp_2, tau_2)
-                                + self.event_baseline)
+                                + self.event_start_y)
             self.fit_decay_x = (decay_x + self.event_peak_x)/self.s_r_c
         except:
             self.fit_decay_x = np.nan
@@ -1451,7 +1443,7 @@ class PostSynapticEvent():
     def change_amplitude(self, x, y):
         self.event_peak_x = int(x)
         self.event_peak_y = y
-        self.amplitude = abs(self.event_peak_y - self.event_baseline)
+        self.amplitude = abs(self.event_peak_y - self.event_start_y)
         self.calc_event_rise_time()
         self.est_decay()
         self.peak_align_value = self.event_peak_x - self.array_start
@@ -1477,8 +1469,7 @@ class PostSynapticEvent():
         start = int((self.event_start_x -self.array_start)
                     - (0.5 * self.s_r_c))
         end = int(self.event_start_x - self.array_start)
-        self.event_baseline = np.mean(self.event_array[start:end])
-        self.amplitude = abs(self.event_peak_y - self.event_baseline)
+        self.amplitude = abs(self.event_peak_y - self.event_start_y)
         self.calc_event_rise_time()
         self.est_decay()
         if self.curve_fit_decay:
