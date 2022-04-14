@@ -1174,7 +1174,7 @@ class MiniAnalysis(Acquisition):
                            self.postsynaptic_events]
         self.rise_rates = [i.rise_rate for i in
                            self.postsynaptic_events]
-        self.event_arrays = [i.event_array-i.event_baseline
+        self.event_arrays = [i.event_array-i.event_start_y
                              for i in self.postsynaptic_events]
         self.peak_align_values = [i.event_peak_x - i.array_start for i in
                            self.postsynaptic_events]
