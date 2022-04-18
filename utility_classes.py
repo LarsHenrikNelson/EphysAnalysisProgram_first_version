@@ -9,13 +9,16 @@ Last updated on Wed Feb 16 12:33:00 2021
 from copy import deepcopy
 from glob import glob
 import json
+from pathlib import PurePath
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import numpy as np
-from PyQt5.QtWidgets import (QLineEdit, QSizePolicy, QWidget, QVBoxLayout)
+from PyQt5.QtWidgets import (QLineEdit, QSizePolicy, QWidget, QVBoxLayout,
+                             QListView)
 from PyQt5.QtCore import (QRunnable, pyqtSlot, QObject,
-                          pyqtSignal)
+                          pyqtSignal, Qt, QAbstractListModel)
+from scipy.fftpack import sc_diff
 from sklearn.neighbors import KernelDensity
 from sklearn.model_selection import GridSearchCV
 import yaml
@@ -250,6 +253,77 @@ class YamlWorker:
             yaml.dump(dictionary, file)
 
 
+class ListView(QListView):
+
+    def __init__(self):
+        super().__init__()
+        self.setAcceptDrops(True)
+        # self.item_list = []
+        self.setSelectionMode(self.MultiSelection)
+        self.setDropIndicatorShown(True)
+
+    def dragEnterEvent(self, e):
+        """
+        This function will detect the drag enter event from the mouse on the
+        main window
+        """
+        if e.mimeData().hasUrls:
+            e.accept()
+        else:
+            e.ignore()
+	
+    
+    def dragMoveEvent(self, e):
+        """
+		This function will detect the drag move event on the main window
+		"""
+        if e.mimeData().hasUrls:
+            e.accept()
+        else:
+            e.ignore()
+	
+    
+    def dropEvent(self, e):
+        """
+		This function will enable the drop file directly on to the 
+		main window. The file location will be stored in the self.filename
+		"""
+        if e.mimeData().hasUrls:
+            e.setDropAction(Qt.CopyAction)
+            e.accept()
+            for url in e.mimeData().urls():
+                fname = PurePath(str(url.toLocalFile()))
+                if fname not in self.model().fname_list:
+                    self.model().fname_list += [fname]
+                    self.model().acq_list += [fname.stem]
+            self.model().acq_list.sort(key=lambda x: int(x.split('_')[1]))
+            self.model().fname_list.sort(key=lambda x: int(x.stem.split('_')[1]))
+            print([str(i) for i in self.model().fname_list])
+            self.model().layoutChanged.emit()
+        else:
+            e.ignore()
+
+    
+    # def clearList(self):
+    #     self.fname_list = []
+
+
+class ListModel(QAbstractListModel):
+    def __init__(self, acq_list=None, fname_list=None):
+        super().__init__()
+        self.acq_list = acq_list or []
+        self.fname_list = fname_list or []
+
+    def data(self, index, role):
+        if role == Qt.ItemDataRole.DisplayRole:
+            text = self.acq_list[index.row()]
+            return text
+    
+
+    def rowCount(self, index):
+        return len(self.acq_list)
+
+
 if __name__ == '__main__':
     LineEdit()
     SaveWorker()
@@ -259,3 +333,5 @@ if __name__ == '__main__':
     DistributionPlot()
     NumpyEncoder()
     YamlWorker()
+    ListView()
+    ListModel()

@@ -111,7 +111,33 @@ def return_acq_components(name):
     pulse_amp = re.findall('amplitude=(\D?\d*)', r)[0]
     return array, epoch, pulse_pattern, ramp, pulse_amp, time_stamp
 
+
+def load_scanimage_file(path):
+    '''
+    This function takes pathlib.PurePath object as the input.
+    '''
+    name = path.stem
+    acq_number = name.split('_')[-1]
+    matfile1 = load_mat(path)
+    array = matfile1[name]['data']
+    data_string = matfile1[name]['UserData']['headerString']
+    epoch = re.findall('epoch=(\D?\d*)', data_string)[0]
+    analog_input = matfile1[name]['UserData']['ai']
+    time_stamp = matfile1[name]['timeStamp']
+    if analog_input == 0:
+        r = re.findall(r'pulseString_ao0=(.*?)state', data_string)[0]
+        pulse_pattern = re.findall('pulseToUse1=(\D?\d*)', data_string)[0]
+    elif analog_input == 1:
+        r = re.findall(r'pulseString_ao1=(.*?)state', data_string)[0]
+        pulse_pattern = re.findall('pulseToUse1=(\D?\d*)', data_string)[0]
+    ramp = re.findall(r'ramp=(\D?\d*);', r)[0]
+    pulse_amp = re.findall('amplitude=(\D?\d*)', r)[0]
+    return (name, acq_number, array, epoch, pulse_pattern, ramp, pulse_amp,
+            time_stamp)
+
+
 if __name__ == '__main__':
     load_mat()
     return_acq_components()
+    load_scanimage_file()
     

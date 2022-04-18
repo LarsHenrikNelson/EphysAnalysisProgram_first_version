@@ -34,20 +34,19 @@ class Acquisition:
     '''
     
     
-    def __init__(self, prefix, acq_number, sample_rate, baseline_start,
+    def __init__(self, acq_components, sample_rate, baseline_start,
                  baseline_end, filter_type='None', order=None, high_pass=None,
                  high_width=None, low_pass=None, low_width=None, window=None,
                  polyorder=None):
-        self.prefix = prefix
-        self.acq_number = acq_number
-        self.name = f'{prefix}_{self.acq_number}'
         self.sample_rate = sample_rate
-        (self.array,
-         self.epoch,
-         self.pulse_pattern,
-         self.ramp,
-         self.pulse_amp,
-         self.time_stamp) = return_acq_components(self.name)
+        self.name = acq_components[0]
+        self.acq_number = acq_components[1]
+        self.array = acq_components[2]
+        self.epoch = acq_components[3]
+        self.pulse_pattern = acq_components[4]
+        self.ramp = acq_components[5]
+        self.pulse_amp = acq_components[6]
+        self.time_stamp = acq_components[7]
         self.s_r_c = sample_rate/1000
         self.x_array = np.arange(len(self.array))/(sample_rate/1000)
         self.baseline_start = int(baseline_start*(sample_rate/1000))
@@ -906,17 +905,13 @@ class CurrentClamp(Acquisition):
             
 
 class MiniAnalysis(Acquisition):
-    def __init__(self, prefix, acq_number, sample_rate, baseline_start, 
-                 baseline_end, filter_type=None, order=None, high_pass=None,
-                 high_width=None, low_pass=None, low_width=None, window=None,
-                 polyorder=None, template=None, rc_check = False,
+    def __init__(self, template=None, rc_check = False,
                  rc_check_start=None, rc_check_end=None, sensitivity=3,
                  amp_threshold=7, mini_spacing=7.5, min_rise_time=1,
                  min_decay_time= 2, invert=False, decon_type='weiner',
-                 curve_fit_decay=False, curve_fit_type='db_exp'):
-        super().__init__(prefix, acq_number, sample_rate, baseline_start, 
-                         baseline_end, filter_type, order, high_pass,
-                         high_pass, low_pass, low_width, window, polyorder)
+                 curve_fit_decay=False, curve_fit_type='db_exp',
+                 **kwargs):
+        super().__init__(**kwargs)
         self.rc_check = rc_check
         self.rc_check_start = int(rc_check_start
                                        * self.s_r_c)

@@ -17,7 +17,7 @@ import pandas as pd
 from PyQt5.QtWidgets import (QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout,
                              QWidget, QLabel, QFormLayout, QComboBox, QSpinBox,
                              QCheckBox, QProgressBar, QMessageBox, QTabWidget,
-                             QScrollArea, QSizePolicy)
+                             QScrollArea, QSizePolicy, QListWidget)
 from PyQt5.QtGui import QIntValidator, QKeySequence, QShortcut
 from PyQt5.QtCore import QThreadPool, Qt
 import pyqtgraph as pg
@@ -25,8 +25,10 @@ import pyqtgraph as pg
 from acq_class import MiniAnalysis, LoadMiniAnalysis
 from final_analysis_classes import FinalMiniAnalysis
 from load_classes import LoadMiniSaveData
+from utilities import load_scanimage_file
 from utility_classes import (LineEdit, MiniSaveWorker, MplWidget,
-                             DistributionPlot, YamlWorker)
+                             DistributionPlot, YamlWorker, ListView,
+                             ListModel)
 
 
 class miniAnalysisWidget(QWidget):
@@ -71,6 +73,11 @@ class miniAnalysisWidget(QWidget):
         self.extra_layout = QVBoxLayout()
         self.other_layout = QHBoxLayout()
         self.input_layout = QFormLayout()
+        self.load_layout = QVBoxLayout()
+        self.load_widget = ListView()
+        self.acq_model = ListModel()
+        self.load_widget.setModel(self.acq_model)
+        self.load_layout.addWidget(self.load_widget)
         self.input_layout.setFieldGrowthPolicy(
             QFormLayout.FieldsStayAtSizeHint)
         self.settings_layout = QFormLayout()
@@ -82,6 +89,7 @@ class miniAnalysisWidget(QWidget):
         self.tab1.setLayout(self.setup_layout)
         self.setup_layout.addLayout(self.input_layout, 0)
         self.setup_layout.addLayout(self.extra_layout, 0)
+        self.setup_layout.addLayout(self.load_layout)
         self.extra_layout.addLayout(self.other_layout, 0)
         self.other_layout.addLayout(self.settings_layout, 0)
         self.other_layout.addLayout(self.template_form, 0)
@@ -223,23 +231,23 @@ class miniAnalysisWidget(QWidget):
         self.mini_view_layout.addWidget(self.mini_view_widget, 1)
         
         #Tab1 input
-        self.acq_id_label = QLabel('Acq ID')
-        self.acq_id_edit = LineEdit()
-        self.acq_id_edit.setObjectName('acq_id_edit')
-        self.acq_id_edit.setEnabled(True)
-        self.input_layout.addRow(self.acq_id_label, self.acq_id_edit)
+        # self.acq_id_label = QLabel('Acq ID')
+        # self.acq_id_edit = LineEdit()
+        # self.acq_id_edit.setObjectName('acq_id_edit')
+        # self.acq_id_edit.setEnabled(True)
+        # self.input_layout.addRow(self.acq_id_label, self.acq_id_edit)
     
-        self.start_acq_label = QLabel('Start acq')
-        self.start_acq_edit = LineEdit()
-        self.start_acq_edit.setObjectName('start_acq_edit')
-        self.start_acq_edit.setEnabled(True)
-        self.input_layout.addRow(self.start_acq_label, self.start_acq_edit)
+        # self.start_acq_label = QLabel('Start acq')
+        # self.start_acq_edit = LineEdit()
+        # self.start_acq_edit.setObjectName('start_acq_edit')
+        # self.start_acq_edit.setEnabled(True)
+        # self.input_layout.addRow(self.start_acq_label, self.start_acq_edit)
         
-        self.end_acq_label = QLabel('End acq')
-        self.end_acq_edit = LineEdit()
-        self.end_acq_edit.setObjectName('end_acq_edit')
-        self.end_acq_edit.setEnabled(True)
-        self.input_layout.addRow(self.end_acq_label, self.end_acq_edit)
+        # self.end_acq_label = QLabel('End acq')
+        # self.end_acq_edit = LineEdit()
+        # self.end_acq_edit.setObjectName('end_acq_edit')
+        # self.end_acq_edit.setEnabled(True)
+        # self.input_layout.addRow(self.end_acq_label, self.end_acq_edit)
 
         self.b_start_label = QLabel('Baseline start (ms)')
         self.b_start_edit = LineEdit()
@@ -493,6 +501,12 @@ class miniAnalysisWidget(QWidget):
         self.template_plot.setMinimumHeight(300)
         self.extra_layout.addWidget(self.template_plot, 0)
         
+
+        #Setup for the drag and drop load layout
+        self.del_sel_button = QPushButton('Delete selection')
+        self.load_layout.addWidget(self.del_sel_button)
+        self.del_sel_button.clicked.connect(self.del_selection)
+
         self.threadpool = QThreadPool()
         
         self.acq_dict = {}
@@ -527,7 +541,21 @@ class miniAnalysisWidget(QWidget):
         
         self.del_acq_shortcut = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
         self.del_acq_shortcut.activated.connect(self.delete_acq)
-        
+
+
+    def del_selection(self):
+        indexes = self.load_widget.selectedIndexes()
+        print([i.row() for i in indexes])
+        print(self.acq_model.acq_list)
+        if len(indexes) > 0:
+            for index in sorted(indexes, reverse=True):
+                print(index.row())
+                del self.acq_model.acq_list[index.row()]
+                del self.acq_model.fname_list[index.row()]
+            print(self.acq_model.acq_list)
+            self.acq_model.layoutChanged.emit()
+            self.load_widget.clearSelection()
+
     
     def tm_psp(self):
         '''
@@ -566,69 +594,67 @@ class miniAnalysisWidget(QWidget):
                                             y=self.template)
 
 
-    def load_files(self):
-        file_extension = self.acq_id_edit.toText() + '_' + '*.mat'
-        filename = self.acq_id_edit.toText() + '_'
-        file_list = glob(file_extension)
-        if not file_list:
-            self.file_list = None
-        else:
-            filtered_list = [ x for x in file_list if "avg" not in x ]
-            cleaned_1 = [n.replace(filename, '') for n in filtered_list]
-            self.file_list = sorted([int(n.replace('.mat', ''))
-                                     for n in cleaned_1])
+    # def load_files(self):
+        # file_extension = self.acq_id_edit.toText() + '_' + '*.mat'
+        # filename = self.acq_id_edit.toText() + '_'
+        # file_list = glob(file_extension)
+        # if not file_list:
+        #     self.file_list = None
+        # else:
+        #     filtered_list = [ x for x in file_list if "avg" not in x ]
+        #     cleaned_1 = [n.replace(filename, '') for n in filtered_list]
+        #     self.file_list = sorted([int(n.replace('.mat', ''))
+        #                              for n in cleaned_1])
    
 
     def analyze(self):
         self.analyze_acq_button.setEnabled(False)
-        if not self.template:
+        if len(self.template) == 0:
             self.create_template()
-        self.load_files()
-        if not self.file_list:
+        # self.load_files()
+        if len(self.acq_model.fname_list) == 0:
             self.file_does_not_exist()
             self.analyze_acq_button.setEnabled(True)
         else:
-            self.analysis_list = np.arange(self.start_acq_edit.toInt(),
-                                      self.end_acq_edit.toInt()+1).tolist()
+            # self.analysis_list = np.arange(self.start_acq_edit.toInt(),
+            #                           self.end_acq_edit.toInt()+1).tolist()
             self.pbar.setFormat('Analyzing...')
             self.pbar.setValue(0)
-            if len(self.template) > 0:
-                template = self.template
-            else:
-                template = None
-            for count, i in enumerate(self.analysis_list):
-                if (i in self.file_list):
-                    # print(i)
-                    x = MiniAnalysis(self.acq_id_edit.toText(), 
-                        i, 
-                        sample_rate=self.sample_rate_edit.toInt(), 
-                        baseline_start=self.b_start_edit.toInt(), 
-                        baseline_end=self.b_end_edit.toInt(),
-                        filter_type=self.filter_selection.currentText(), 
-                        order=self.order_edit.toInt(), 
-                        high_pass=self.high_pass_edit.toInt(), 
-                        high_width=self.high_width_edit.toInt(), 
-                        low_pass=self.low_pass_edit.toInt(), 
-                        low_width=self.low_width_edit.toInt(), 
-                        window=self.window_edit.currentText(), 
-                        polyorder=self.polyorder_edit.toInt(),
-                        template=template,
-                        rc_check=self.rc_checkbox.isChecked(),
-                        rc_check_start=self.rc_check_start_edit.toInt(),
-                        rc_check_end=self.rc_check_end_edit.toInt(),
-                        sensitivity=self.sensitivity_edit.toFloat(),
-                        amp_threshold=self.amp_thresh_edit.toFloat(),
-                        mini_spacing=self.mini_spacing_edit.toFloat(),
-                        min_rise_time=self.min_rise_time.toFloat(),
-                        min_decay_time=self.min_decay.toFloat(),
-                        invert=self.invert_checkbox.isChecked(),
-                        decon_type = self.decon_type_edit.currentText(),
-                        curve_fit_decay = self.curve_fit_decay.isChecked())
-                    x.analyze()
-                    self.acq_dict[str(i)] = x
-                else:
-                    pass
-                self.pbar.setValue(int(((count+1)/len(self.analysis_list))*100))
+            # if len(self.template) > 0:
+            #     template = self.template
+            # else:
+            #     template = None
+            for count, i in enumerate(self.acq_model.fname_list):
+                acq_components = load_scanimage_file(i)
+                x = MiniAnalysis(
+                    acq_components = acq_components,
+                    sample_rate=self.sample_rate_edit.toInt(), 
+                    baseline_start=self.b_start_edit.toInt(), 
+                    baseline_end=self.b_end_edit.toInt(),
+                    filter_type=self.filter_selection.currentText(), 
+                    order=self.order_edit.toInt(), 
+                    high_pass=self.high_pass_edit.toInt(), 
+                    high_width=self.high_width_edit.toInt(), 
+                    low_pass=self.low_pass_edit.toInt(), 
+                    low_width=self.low_width_edit.toInt(), 
+                    window=self.window_edit.currentText(), 
+                    polyorder=self.polyorder_edit.toInt(),
+                    template=self.template,
+                    rc_check=self.rc_checkbox.isChecked(),
+                    rc_check_start=self.rc_check_start_edit.toInt(),
+                    rc_check_end=self.rc_check_end_edit.toInt(),
+                    sensitivity=self.sensitivity_edit.toFloat(),
+                    amp_threshold=self.amp_thresh_edit.toFloat(),
+                    mini_spacing=self.mini_spacing_edit.toFloat(),
+                    min_rise_time=self.min_rise_time.toFloat(),
+                    min_decay_time=self.min_decay.toFloat(),
+                    invert=self.invert_checkbox.isChecked(),
+                    decon_type = self.decon_type_edit.currentText(),
+                    curve_fit_decay = self.curve_fit_decay.isChecked()
+                    )
+                x.analyze()
+                self.acq_dict[x.acq_number] = x
+                self.pbar.setValue(int(((count+1)/len(self.acq_model.fname_list))*100))
             acq_number = list(self.acq_dict.keys())
             self.analysis_list = [int(i) for i in self.acq_dict.keys()]
             print(self.acq_dict.keys())
@@ -703,6 +729,9 @@ class miniAnalysisWidget(QWidget):
     def reset(self):
         self.p1.clear()
         self.p2.clear()
+        self.acq_model.acq_list = []
+        self.acq_model.fname_list = []
+        self.acq_model.layoutChanged.emit()
         self.calc_param_clicked = False
         self.mini_view_widget.clear()
         self.acq_dict = {}
@@ -733,6 +762,8 @@ class miniAnalysisWidget(QWidget):
         self.ave_mini_plot.clear()
         self.pref_dict = {}
         self.calc_param_clicked = False
+        self.template = []
+        # self.load_widget.clearSelections()
 
 
     def update(self):
