@@ -298,7 +298,7 @@ class ListView(QListView):
                     self.model().acq_list += [fname.stem]
             self.model().acq_list.sort(key=lambda x: int(x.split('_')[1]))
             self.model().fname_list.sort(key=lambda x: int(x.stem.split('_')[1]))
-            print([str(i) for i in self.model().fname_list])
+            # print([str(i) for i in self.model().fname_list])
             self.model().layoutChanged.emit()
         else:
             e.ignore()
@@ -309,16 +309,23 @@ class ListView(QListView):
 
 
 class ListModel(QAbstractListModel):
-    def __init__(self, acq_list=None, fname_list=None):
+    def __init__(self, acq_list=None, fname_list=None,
+                 header_name='Acquisition(s)'):
         super().__init__()
         self.acq_list = acq_list or []
         self.fname_list = fname_list or []
+        self.header_name = header_name
 
     def data(self, index, role):
         if role == Qt.ItemDataRole.DisplayRole:
             text = self.acq_list[index.row()]
             return text
     
+
+    def headerData(self, name, role):
+        if role == Qt.ItemDataRole.DisplayRole:
+            name = self.header_name
+            return name
 
     def rowCount(self, index):
         return len(self.acq_list)

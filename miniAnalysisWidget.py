@@ -74,10 +74,6 @@ class miniAnalysisWidget(QWidget):
         self.other_layout = QHBoxLayout()
         self.input_layout = QFormLayout()
         self.load_layout = QVBoxLayout()
-        self.load_widget = ListView()
-        self.acq_model = ListModel()
-        self.load_widget.setModel(self.acq_model)
-        self.load_layout.addWidget(self.load_widget)
         self.input_layout.setFieldGrowthPolicy(
             QFormLayout.FieldsStayAtSizeHint)
         self.settings_layout = QFormLayout()
@@ -231,23 +227,12 @@ class miniAnalysisWidget(QWidget):
         self.mini_view_layout.addWidget(self.mini_view_widget, 1)
         
         #Tab1 input
-        # self.acq_id_label = QLabel('Acq ID')
-        # self.acq_id_edit = LineEdit()
-        # self.acq_id_edit.setObjectName('acq_id_edit')
-        # self.acq_id_edit.setEnabled(True)
-        # self.input_layout.addRow(self.acq_id_label, self.acq_id_edit)
-    
-        # self.start_acq_label = QLabel('Start acq')
-        # self.start_acq_edit = LineEdit()
-        # self.start_acq_edit.setObjectName('start_acq_edit')
-        # self.start_acq_edit.setEnabled(True)
-        # self.input_layout.addRow(self.start_acq_label, self.start_acq_edit)
-        
-        # self.end_acq_label = QLabel('End acq')
-        # self.end_acq_edit = LineEdit()
-        # self.end_acq_edit.setObjectName('end_acq_edit')
-        # self.end_acq_edit.setEnabled(True)
-        # self.input_layout.addRow(self.end_acq_label, self.end_acq_edit)
+        self.load_acq_label = QLabel('Acquisition(s)')
+        self.load_layout.addWidget(self.load_acq_label)
+        self.load_widget = ListView()
+        self.acq_model = ListModel()
+        self.load_widget.setModel(self.acq_model)
+        self.load_layout.addWidget(self.load_widget)
 
         self.b_start_label = QLabel('Baseline start (ms)')
         self.b_start_edit = LineEdit()
@@ -430,6 +415,13 @@ class miniAnalysisWidget(QWidget):
         self.curve_fit_decay.setTristate(False)
         self.settings_layout.addRow(self.curve_fit_decay_label,
                                  self.curve_fit_decay)
+
+        self.curve_fit_type_label = QLabel('Curve fit type')
+        fit_types = ['exp', 'db_exp']
+        self.curve_fit_edit = QComboBox(self)
+        self.curve_fit_edit.addItems(fit_types)
+        self.curve_fit_edit.setObjectName('curve_fit_type')
+        self.settings_layout.addRow(self.curve_fit_type_label, self.curve_fit_edit)
         
         self.invert_label = QLabel('Invert (For positive currents)')
         self.invert_checkbox = QCheckBox(self)
@@ -497,8 +489,7 @@ class miniAnalysisWidget(QWidget):
         self.template_button.setObjectName('template_button')
         
         self.template_plot = pg.PlotWidget()
-        self.template_plot.setMinimumWidth(300)
-        self.template_plot.setMinimumHeight(300)
+        self.template_plot.setMinimumSize(300, 300)
         self.extra_layout.addWidget(self.template_plot, 0)
         
 
@@ -545,14 +536,10 @@ class miniAnalysisWidget(QWidget):
 
     def del_selection(self):
         indexes = self.load_widget.selectedIndexes()
-        print([i.row() for i in indexes])
-        print(self.acq_model.acq_list)
         if len(indexes) > 0:
             for index in sorted(indexes, reverse=True):
-                print(index.row())
                 del self.acq_model.acq_list[index.row()]
                 del self.acq_model.fname_list[index.row()]
-            print(self.acq_model.acq_list)
             self.acq_model.layoutChanged.emit()
             self.load_widget.clearSelection()
 
@@ -593,19 +580,6 @@ class miniAnalysisWidget(QWidget):
                                             /s_r_c),
                                             y=self.template)
 
-
-    # def load_files(self):
-        # file_extension = self.acq_id_edit.toText() + '_' + '*.mat'
-        # filename = self.acq_id_edit.toText() + '_'
-        # file_list = glob(file_extension)
-        # if not file_list:
-        #     self.file_list = None
-        # else:
-        #     filtered_list = [ x for x in file_list if "avg" not in x ]
-        #     cleaned_1 = [n.replace(filename, '') for n in filtered_list]
-        #     self.file_list = sorted([int(n.replace('.mat', ''))
-        #                              for n in cleaned_1])
-   
 
     def analyze(self):
         self.analyze_acq_button.setEnabled(False)
@@ -649,8 +623,9 @@ class miniAnalysisWidget(QWidget):
                     min_rise_time=self.min_rise_time.toFloat(),
                     min_decay_time=self.min_decay.toFloat(),
                     invert=self.invert_checkbox.isChecked(),
-                    decon_type = self.decon_type_edit.currentText(),
-                    curve_fit_decay = self.curve_fit_decay.isChecked()
+                    decon_type=self.decon_type_edit.currentText(),
+                    curve_fit_decay=self.curve_fit_decay.isChecked(),
+                    curve_fit_type=self.curve_fit_edit.currentText()
                     )
                 x.analyze()
                 self.acq_dict[x.acq_number] = x
@@ -680,8 +655,8 @@ class miniAnalysisWidget(QWidget):
         self.acq_object = None
         self.sort_index = []
         self.mini_spinbox_list = []
+        self.acquisition_number.setDisabled(True)
         if (int(self.acquisition_number.value()) in self.analysis_list):
-            self.acquisition_number.setDisabled(True)
             self.acq_object = self.acq_dict[
                 str(self.acquisition_number.value())]
             self.epoch_edit.setText(self.acq_object.epoch)
@@ -698,7 +673,6 @@ class miniAnalysisWidget(QWidget):
             self.region.setRegion([0, 400])
             self.region.setZValue(10)
             self.p1.setAutoVisible(y=True)
-            # self.p3.setAutoVisible(y=True)
             if self.acq_object.postsynaptic_events:
                 self.mini_spinbox_list = list(
                     range(len(self.acq_object.postsynaptic_events)))
@@ -721,9 +695,9 @@ class miniAnalysisWidget(QWidget):
                 self.mini_spinbox(self.mini_spinbox_list[0])
                 self.acquisition_number.setEnabled(True)
             else:
-                pass
+                self.acquisition_number.setEnabled(True)
         else:
-            pass
+            self.acquisition_number.setEnabled(True)
     
     
     def reset(self):
@@ -1063,8 +1037,6 @@ class miniAnalysisWidget(QWidget):
             load_dict['buttons']['calculate_parameters'])
         self.analyze_acq_button.setEnabled(
             load_dict['buttons']['analyze_acq_button'])
-        self.acquisition_number.setValue(load_dict['Acq_number'])
-        self.acq_spinbox(int(load_dict['Acq_number']))
         file_list = glob('*.json')
         if not file_list:
             self.file_list = None
@@ -1077,9 +1049,15 @@ class miniAnalysisWidget(QWidget):
                     self.acq_dict[str(x.acq_number)] = x
                     self.pbar.setValue(
                         int(((i+1)/len(file_list))*100))
+            if load_dict.get('Deleted Acqs'):
+                for i in load_dict['Deleted Acqs']:
+                    self.deleted_acqs[i] = self.acq_dict[i]
+                    del self.acq_dict[i]      
             self.analysis_list = [int(i) for i in self.acq_dict.keys()]
             self.acquisition_number.setMaximum(max(self.analysis_list))
-            self.acquisition_number.setMinimum(min(self.analysis_list)) 
+            self.acquisition_number.setMinimum(min(self.analysis_list))
+            self.acquisition_number.setValue(load_dict['Acq_number'])
+            self.acq_spinbox(int(load_dict['Acq_number']))
             if load_dict['Final Analysis']:
                 excel_file = glob('*.xlsx')[0]
                 save_values = pd.read_excel(excel_file, sheet_name=None)
@@ -1110,6 +1088,9 @@ class miniAnalysisWidget(QWidget):
         if self.pref_dict['Final Analysis']:
             self.final_obj.save_data(save_filename)
         self.worker = MiniSaveWorker(save_filename, self.acq_dict)
+        self.worker.signals.progress.connect(self.update_save_progress)
+        self.threadpool.start(self.worker)
+        self.worker = MiniSaveWorker(save_filename, self.deleted_acqs)
         self.worker.signals.progress.connect(self.update_save_progress)
         self.worker.signals.finished.connect(self.progress_finished)
         self.threadpool.start(self.worker)

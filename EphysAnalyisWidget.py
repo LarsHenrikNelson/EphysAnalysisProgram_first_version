@@ -142,7 +142,6 @@ class MainWindow(QMainWindow):
 
 
 def run_program():
-    os.chdir(expanduser("~"))
     app = QApplication([])
     app.setStyleSheet(qdarkstyle.load_stylesheet())
     window = MainWindow()

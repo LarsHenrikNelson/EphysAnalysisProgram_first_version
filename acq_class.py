@@ -182,13 +182,11 @@ class LFP(Acquisition):
     '''
     
     
-    def __init__(self, prefix, acq_number, sample_rate, baseline_start, 
-                 baseline_end, filter_type='None', order=None, high_pass=None,
+    def __init__(self, sample_rate, baseline_start, baseline_end, 
+                 filter_type='None', order=None, high_pass=None,
                  high_width=None, low_pass=None, low_width=None, window=None,
-                 polyorder=None, pulse_start=1000):
-        super().__init__(prefix, acq_number, sample_rate, baseline_start, 
-                         baseline_end, filter_type, order, high_pass,
-                         high_pass, low_pass, low_width, window, polyorder)
+                 polyorder=None, pulse_start=1000, **kwargs):
+        super().__init__(**kwargs)
         
         self.pulse_start = int(pulse_start*self.s_r_c)
         self.fp_x = np.nan
@@ -405,16 +403,10 @@ class LFP(Acquisition):
 
 
 class oEPSC(Acquisition):
-    def __init__(self, prefix, acq_number, sample_rate, baseline_start, 
-                 baseline_end, filter_type=None, order=None, high_pass=None,
-                 high_width=None, low_pass=None, low_width=None, window=None,
-                 polyorder=None, pulse_start=1000, n_window_start=1001,
+    def __init__(self, pulse_start=1000, n_window_start=1001,
                  n_window_end=1050, p_window_start=1045,
-                 p_window_end=1055):
-        
-        super().__init__(prefix, acq_number, sample_rate, baseline_start,
-                         baseline_end, filter_type, order, high_pass,
-                         high_pass, low_pass, low_width, window, polyorder)
+                 p_window_end=1055, **kwargs):
+        super().__init__(**kwargs)
         self.pulse_start = int(pulse_start*self.s_r_c)
         self.n_window_start = int(n_window_start*self.s_r_c)
         self.n_window_end = int(n_window_end*self.s_r_c)
@@ -498,16 +490,12 @@ class oEPSC(Acquisition):
     
 
 class CurrentClamp(Acquisition):
-    def __init__(self, prefix, acq_number, sample_rate, baseline_start,
+    def __init__(self, sample_rate, baseline_start,
                  baseline_end, filter_type='None', order=None, high_pass=None,
                  high_width=None, low_pass=None, low_width=None, window=None, 
                  polyorder=None, pulse_start=300, pulse_end=1000, 
-                 ramp_start=300, ramp_end=4000, threshold=-15):
-        
-        
-        super().__init__(prefix, acq_number, sample_rate, baseline_start,
-                         baseline_end, filter_type, order, high_pass,
-                         high_pass, low_pass, low_width, window, polyorder)
+                 ramp_start=300, ramp_end=4000, threshold=-15, **kwargs):
+        super().__init__(**kwargs)
         self.pulse_start = int(pulse_start*self.s_r_c)
         self.pulse_end = int(pulse_end*self.s_r_c)
         self.ramp_start = int(ramp_start*self.s_r_c)
@@ -1280,6 +1268,7 @@ class PostSynapticEvent():
                 masked_array[0:int(self.event_peak_x - self.array_start)])
             self.event_start_x = self.x_array[event_start]
             self.event_start_y = self.event_array[event_start]
+        self.event_baseline = self.event_start_y
     
     
     def find_baseline(self):
@@ -1394,18 +1383,29 @@ class PostSynapticEvent():
         try:
             baselined_event = self.event_array - self.event_start_y
             amp = self.event_peak_x - self.array_start
-            upper_bounds = [0, np.inf, 0, np.inf]
-            lower_bounds = [-np.inf, 0, -np.inf, 0]
             decay_y = baselined_event[amp:]
             decay_x = np.arange(len(decay_y))
-            init_param = np.array([self.event_peak_y, self.final_tau_x, 0, 0])
-            popt, pcov = curve_fit(self.db_exp, decay_x, decay_y, p0=init_param,
-                                   bounds=[lower_bounds, upper_bounds])
-            amp_1, self.fit_tau, amp_2, tau_2 = popt
-            self.fit_decay_y = (self.db_exp(decay_x, amp_1, self.fit_tau,
-                                            amp_2, tau_2)
-                                + self.event_start_y)
-            self.fit_decay_x = (decay_x + self.event_peak_x)/self.s_r_c
+            if fit_type == 'db_exp':
+                upper_bounds = [0, np.inf, 0, np.inf]
+                lower_bounds = [-np.inf, 0, -np.inf, 0]
+                init_param = np.array([self.event_peak_y, self.final_tau_x, 0, 0])
+                popt, pcov = curve_fit(self.db_exp, decay_x, decay_y, p0=init_param,
+                                    bounds=[lower_bounds, upper_bounds])
+                amp_1, self.fit_tau, amp_2, tau_2 = popt
+                self.fit_decay_y = (self.db_exp(decay_x, amp_1, self.fit_tau,
+                                                amp_2, tau_2)
+                                    + self.event_start_y)
+                self.fit_decay_x = (decay_x + self.event_peak_x)/self.s_r_c
+            else:
+                upper_bounds = [0, np.inf]
+                lower_bounds = [-np.inf, 0]
+                init_param = np.array([self.event_peak_y, self.final_tau_x])
+                popt, pcov = curve_fit(self.s_exp, decay_x, decay_y, p0=init_param,
+                                    bounds=[lower_bounds, upper_bounds])
+                amp_1, self.fit_tau = popt
+                self.fit_decay_y = (self.s_exp(decay_x, amp_1, self.fit_tau)
+                                    + self.event_start_y)
+                self.fit_decay_x = (decay_x + self.event_peak_x)/self.s_r_c
         except:
             self.fit_decay_x = np.nan
             self.fit_decay_y = np.nan
@@ -1483,12 +1483,31 @@ class PostSynapticEvent():
                             self.est_tau_y]
         
 
-class LoadCurrentClamp(object):
+class LoadLFP(LFP):
+    def __init__(self, *initial_data, **kwargs):
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+
+class LoadoEPSC(oEPSC):
+    def __init__(self, *initial_data, **kwargs):
+        for dictionary in initial_data:
+            for key in dictionary:
+                setattr(self, key, dictionary[key])
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+
+class LoadCurrentClamp(CurrentClamp):
     '''
     This class loads the saved CurrentClamp JSON file.
     '''
     
     def __init__(self, *initial_data, **kwargs):
+        self.sample_rate_correction = None
         for dictionary in initial_data:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
@@ -1496,6 +1515,8 @@ class LoadCurrentClamp(object):
             setattr(self, key, kwargs[key])
         self.peaks = np.asarray(self.peaks, dtype=np.int64)
         self.array = np.asarray(self.array)
+        if self.sample_rate_correction is not None:
+            self.s_r_c = self.sample_rate_correction
             
     
 class LoadMiniAnalysis(MiniAnalysis):
@@ -1520,7 +1541,7 @@ class LoadMiniAnalysis(MiniAnalysis):
         self.create_postsynaptic_events()
         self.x_array = np.arange(
             len(self.final_array))/self.s_r_c
-        self.event_arrays = [i.event_array-i.event_baseline
+        self.event_arrays = [i.event_array-i.event_start_y
                              for i in self.postsynaptic_events]
         
     
@@ -1566,4 +1587,6 @@ if __name__ == '__main__':
     LoadMiniAnalysis(),
     LoadCurrentClamp(),
     oEPSC(),
+    LoadoEPSC(),
+    LoadLFP()
     

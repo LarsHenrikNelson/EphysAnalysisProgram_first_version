@@ -10,6 +10,7 @@ from glob import glob
 from math import log10, floor, nan, isnan
 
 import json
+from re import S
 import numpy as np
 from PyQt5.QtWidgets import (QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout,
                              QWidget, QLabel, QFormLayout, QSpinBox,
@@ -20,7 +21,9 @@ import pyqtgraph as pg
 from acq_class import CurrentClamp, LoadCurrentClamp
 from final_analysis_classes import  FinalCurrentClampAnalysis
 from load_classes import LoadCurrentClampData
-from utility_classes import LineEdit, SaveWorker, YamlWorker
+from utilities import load_scanimage_file
+from utility_classes import (LineEdit, SaveWorker, YamlWorker, ListView,
+                             ListModel)
 
 
 
@@ -52,6 +55,7 @@ class currentClampWidget(QWidget):
         self.analysis_layout.addLayout(self.plot_layout, 1)
         self.plot_layout.addLayout(self.analysis_buttons, 0)
         
+        #Analysis layout setup
         self.acquisition_number_label = QLabel('Acq number')
         self.acquisition_number = QSpinBox()
         self.acquisition_number.valueChanged.connect(self.spinbox)
@@ -129,24 +133,30 @@ class currentClampWidget(QWidget):
         self.ramp_ap_plot = pg.PlotWidget()
         self.tabs.addTab(self.ramp_ap_plot, "Ramp AP")
         
-        #Setup widgets and labels
-        self.acq_id_label = QLabel('Acq ID')
-        self.acq_id_edit = LineEdit()
-        self.acq_id_edit.setObjectName('acq_id_edit')
-        self.acq_id_edit.setEnabled(True)
-        self.input_layout.addRow(self.acq_id_label, self.acq_id_edit)
+        #Input widgets and labels
+        self.load_acq_label = QLabel('Acquisition(s)')
+        self.input_layout.addRow(self.load_acq_label)
+        self.acq_view = ListView()
+        self.acq_model = ListModel()
+        self.acq_view.setModel(self.acq_model)
+        self.input_layout.addRow(self.acq_view)
+        # self.acq_id_label = QLabel('Acq ID')
+        # self.acq_id_edit = LineEdit()
+        # self.acq_id_edit.setObjectName('acq_id_edit')
+        # self.acq_id_edit.setEnabled(True)
+        # self.input_layout.addRow(self.acq_id_label, self.acq_id_edit)
         
-        self.start_acq_label = QLabel('Start acq')
-        self.start_acq_edit = LineEdit()
-        self.start_acq_edit.setObjectName('start_acq_edit')
-        self.start_acq_edit.setEnabled(True)
-        self.input_layout.addRow(self.start_acq_label, self.start_acq_edit)
+        # self.start_acq_label = QLabel('Start acq')
+        # self.start_acq_edit = LineEdit()
+        # self.start_acq_edit.setObjectName('start_acq_edit')
+        # self.start_acq_edit.setEnabled(True)
+        # self.input_layout.addRow(self.start_acq_label, self.start_acq_edit)
         
-        self.end_acq_label = QLabel('End acq')
-        self.end_acq_edit = LineEdit()
-        self.end_acq_edit.setObjectName('end_acq_edit')
-        self.end_acq_edit.setEnabled(True)
-        self.input_layout.addRow(self.end_acq_label, self.end_acq_edit)
+        # self.end_acq_label = QLabel('End acq')
+        # self.end_acq_edit = LineEdit()
+        # self.end_acq_edit.setObjectName('end_acq_edit')
+        # self.end_acq_edit.setEnabled(True)
+        # self.input_layout.addRow(self.end_acq_label, self.end_acq_edit)
 
         self.b_start_label = QLabel('Baseline start')
         self.b_start_edit = LineEdit()
@@ -253,45 +263,58 @@ class currentClampWidget(QWidget):
         self.calc_param_clicked = False
 
         
-    def load_files(self):
-        file_extension = self.acq_id_edit.toText() + '_*.mat'
-        filename = self.acq_id_edit.toText() + '_'
-        file_list = glob(file_extension)
-        if not file_list:
-            self.file_list = None
-        else:
-            filtered_list = [ x for x in file_list if "avg" not in x ]
-            cleaned_1 = [n.replace(filename, '') for n in filtered_list]
-            self.file_list = sorted([int(n.replace('.mat', ''))
-                                     for n in cleaned_1])
+    # def load_files(self):
+    #     file_extension = self.acq_id_edit.toText() + '_*.mat'
+    #     filename = self.acq_id_edit.toText() + '_'
+    #     file_list = glob(file_extension)
+    #     if not file_list:
+    #         self.file_list = None
+    #     else:
+    #         filtered_list = [ x for x in file_list if "avg" not in x ]
+    #         cleaned_1 = [n.replace(filename, '') for n in filtered_list]
+    #         self.file_list = sorted([int(n.replace('.mat', ''))
+    #                                  for n in cleaned_1])
+    
+    
+    def del_selection(self):
+        indexes = self.load_widget.selectedIndexes()
+        print([i.row() for i in indexes])
+        print(self.acq_model.acq_list)
+        if len(indexes) > 0:
+            for index in sorted(indexes, reverse=True):
+                print(index.row())
+                del self.acq_model.acq_list[index.row()]
+                del self.acq_model.fname_list[index.row()]
+            print(self.acq_model.acq_list)
+            self.acq_model.layoutChanged.emit()
+            self.load_widget.clearSelection()
 
 
     def analyze(self):
-        self.load_files()
+        self.analyze_acq_button.setEnabled(False)
+        # self.load_files()
         if not self.file_list:
             self.file_does_not_exist()
+            self.analyze_acq_button.setEnabled(True)
         else:
             self.pbar.setFormat('Analyzing...')
             self.pbar.setValue(0)
             self.analysis_list = np.arange(self.start_acq_edit.toInt(),
                                       self.end_acq_edit.toInt() + 1).tolist()
-            for count, i in enumerate(self.analysis_list):
-                if (i in self.file_list):
-                    # print(i)
-                    x = CurrentClamp(self.acq_id_edit.toText(), 
-                            i, 
-                            self.sample_rate_edit.toInt(), 
-                            self.b_start_edit.toInt(), 
-                            self.b_end_edit.toInt(), 
-                            filter_type = 'None',
-                            pulse_start = self.pulse_start_edit.toInt(), 
-                            pulse_end = self.pulse_end_edit.toInt(), 
-                            ramp_start = self.ramp_start_edit.toInt(), 
-                            ramp_end = self.ramp_end_edit.toInt(), 
-                            threshold = self.min_spike_threshold_edit.toInt()) 
-                    self.acq_dict[str(i)] = x
-                else:
-                    pass
+            for count, i in enumerate(self.acq_model.fname_list):
+                acq_components = load_scanimage_file(i)
+                x = CurrentClamp(
+                        acq_components=acq_components,
+                        sample_rate=self.sample_rate_edit.toInt(), 
+                        baseline_start=self.b_start_edit.toInt(), 
+                        baseline_end=self.b_end_edit.toInt(), 
+                        filter_type = 'None',
+                        pulse_start = self.pulse_start_edit.toInt(), 
+                        pulse_end = self.pulse_end_edit.toInt(), 
+                        ramp_start = self.ramp_start_edit.toInt(), 
+                        ramp_end = self.ramp_end_edit.toInt(), 
+                        threshold = self.min_spike_threshold_edit.toInt()) 
+                self.acq_dict[x.acq_number] = x
                 self.pbar.setValue(int(((count+1)/len(self.analysis_list))*100))
             self.analysis_list = [int(i) for i in self.acq_dict.keys()]
             self.acquisition_number.setMaximum(self.analysis_list[-1])
@@ -306,8 +329,8 @@ class currentClampWidget(QWidget):
         self.plot_widget.clear()
         self.acq_dict = {}
         self.analysis_list = []
-        self.file_list = []
-        self.raw_list = []
+        self.acq_model.acq_list = []
+        self.acq_model.fname_list = []
         self.analyze_acq_button.setEnabled(True)
         self.calculate_parameters.setEnabled(True)
         self.raw_data_table.clear()
