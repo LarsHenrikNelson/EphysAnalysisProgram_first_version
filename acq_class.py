@@ -175,6 +175,16 @@ class Acquisition:
         return self.filtered_array
 
 
+    def s_exp(self, x_array, amp, tau):
+        decay = amp * np.exp((-x_array)/tau)
+        return decay
+    
+    
+    def db_exp(self, x_array, a_fast, tau1, a_slow, tau2):
+        y = (a_fast * np.exp((-x_array)/tau1)) + (a_slow * np.exp((-x_array)/tau2))
+        return y
+    
+
 class LFP(Acquisition):
     '''
     This class creates a LFP acquisition. This class subclasses the
@@ -202,7 +212,6 @@ class LFP(Acquisition):
         self.regression_line = np.nan
         self.filter_array()
         self.analyze_lfp()
-        
         
     
     def field_potential(self):
@@ -893,12 +902,11 @@ class CurrentClamp(Acquisition):
             
 
 class MiniAnalysis(Acquisition):
-    def __init__(self, template=None, rc_check = False,
-                 rc_check_start=None, rc_check_end=None, sensitivity=3,
-                 amp_threshold=7, mini_spacing=7.5, min_rise_time=1,
-                 min_decay_time= 2, invert=False, decon_type='weiner',
-                 curve_fit_decay=False, curve_fit_type='db_exp',
-                 **kwargs):
+    def __init__(self, template=None, rc_check=False, rc_check_start=None, 
+                 rc_check_end=None, sensitivity=3, amp_threshold=7,
+                 mini_spacing=7.5, min_rise_time=1, min_decay_time= 2,
+                 invert=False, decon_type='weiner', curve_fit_decay=False,
+                 curve_fit_type='db_exp', *args, **kwargs):
         super().__init__(**kwargs)
         self.rc_check = rc_check
         self.rc_check_start = int(rc_check_start
@@ -923,15 +931,16 @@ class MiniAnalysis(Acquisition):
         self.wiener_deconvolution()
         self.wiener_filt()
         self.create_events()
+
     
     def tm_psp(self, amplitude, tau_1, tau_2, risepower, t_psc, spacer=0):
-        self.template = np.zeros(len(t_psc)+spacer)
-        offset = len(self.template)-len(t_psc)
+        template = np.zeros(len(t_psc)+spacer)
+        offset = len(template)-len(t_psc)
         Aprime = (tau_2/tau_1)**(tau_1/(tau_1-tau_2))
         y = amplitude/Aprime*((1-(np.exp(-t_psc/tau_1)))**risepower
                               * np.exp((-t_psc/tau_2)))
-        self.template[offset:] = y
-        return self.template
+        template[offset:] = y
+        return template
     
     
     def create_template(self, template):
@@ -942,9 +951,9 @@ class MiniAnalysis(Acquisition):
             risepower = 0.5
             t_psc = np.arange(0, 300)
             spacer = 20
-            self.tm_psp(amplitude, tau_1, tau_2, risepower, t_psc,
+            self.template = self.tm_psp(amplitude, tau_1, tau_2, risepower, t_psc,
                         spacer=spacer)
-        elif template is not None:
+        else:
             self.template = template
     
     
@@ -955,9 +964,11 @@ class MiniAnalysis(Acquisition):
             if self.rc_check_end == len(self.filtered_array):
                 self.final_array = np.copy(
                     self.filtered_array[:self.rc_check_start])
+                self.rc_check_array = np.copy(self.array[self.rc_check_start:])
             else:
                 self.final_array = np.copy(
-                    self.filtered_array[self.rc_check_end-1:])
+                    self.filtered_array[self.rc_check_end:])
+                self.rc_check_array = np.copy(self.array[self.rc_check_end:])
         self.x_array = (np.arange(len(self.final_array))
                     / (self.s_r_c))
         return self.final_array, self.x_array
@@ -1227,9 +1238,6 @@ class PostSynapticEvent():
         peaks_1 = signal.argrelextrema(self.event_array, comparator = np.less,
                           order=int(3*self.s_r_c))[0]
         peaks_1 = peaks_1[peaks_1 > 1*self.s_r_c]
-        
-        
-        
         if len(peaks_1) == 0:
             self.event_peak_x = np.nan
             self.event_peak_y = np.nan
@@ -1347,16 +1355,6 @@ class PostSynapticEvent():
         return self.rise_time, self.rise_rate
     
     
-    def s_exp(self, x_array, amp, tau):
-        decay = amp * np.exp(-x_array/tau)
-        return decay
-    
-    
-    def db_exp(self, x, a_fast, tau1, a_slow, tau2):
-        y = (a_fast * np.exp(-x/tau1)) + (a_slow * np.exp(-x/tau2))
-        return y
-    
-    
     def est_decay(self):
         baselined_event = self.event_array - self.event_start_y
         return_to_baseline = int((np.argmax(
@@ -1379,6 +1377,17 @@ class PostSynapticEvent():
             self.est_tau_y = np.nan
     
     
+    def s_exp(self, x_array, amp, tau):
+        decay = amp * np.exp(-x_array/tau)
+        return decay
+    
+    
+    def db_exp(self, x_array, a_fast, tau1, a_slow, tau2):
+        y = ((a_fast * np.exp(-x_array/tau1))
+            + (a_slow * np.exp(-x_array/tau2)))
+        return y
+    
+
     def fit_decay(self, fit_type):
         try:
             baselined_event = self.event_array - self.event_start_y
@@ -1394,8 +1403,7 @@ class PostSynapticEvent():
                 amp_1, self.fit_tau, amp_2, tau_2 = popt
                 self.fit_decay_y = (self.db_exp(decay_x, amp_1, self.fit_tau,
                                                 amp_2, tau_2)
-                                    + self.event_start_y)
-                self.fit_decay_x = (decay_x + self.event_peak_x)/self.s_r_c
+                                                +self.event_start_y)
             else:
                 upper_bounds = [0, np.inf]
                 lower_bounds = [-np.inf, 0]
@@ -1404,8 +1412,8 @@ class PostSynapticEvent():
                                     bounds=[lower_bounds, upper_bounds])
                 amp_1, self.fit_tau = popt
                 self.fit_decay_y = (self.s_exp(decay_x, amp_1, self.fit_tau)
-                                    + self.event_start_y)
-                self.fit_decay_x = (decay_x + self.event_peak_x)/self.s_r_c
+                                    +self.event_start_y)
+            self.fit_decay_x = (decay_x + self.event_peak_x)/self.s_r_c
         except:
             self.fit_decay_x = np.nan
             self.fit_decay_y = np.nan

@@ -13,7 +13,8 @@ import pyqtgraph as pg
 
 
 from acq_class import Acquisition
-from utility_classes import (LineEdit)
+from utilities import load_scanimage_file
+from utility_classes import (LineEdit,  ListView, ListModel)
 
 class filterWidget(QWidget):
     '''
@@ -51,18 +52,17 @@ class filterWidget(QWidget):
         self.legend.setParentItem(self.v1)
         self.legend.anchor((0,0), (0,0))
         
-        self.acq_id_label = QLabel('Acq ID')
-        self.acq_id_edit = LineEdit()
-        self.acq_id_edit.setEnabled(True)
-        self.filt_layout.addRow(self.acq_id_label, self.acq_id_edit)
-        
-        self.acq_number_label = QLabel('Acq #')
-        self.acquisition_number = QSpinBox()
-        self.acquisition_number.setMaximum(400)
-        self.acquisition_number.setMinimum(1)
-        self.acquisition_number.valueChanged.connect(self.spinbox)
-        self.filt_layout.addRow(self.acq_number_label,
-                                self.acquisition_number)
+        self.load_acq_label = QLabel('Acquisition(s)')
+        self.filt_layout.addWidget(self.load_acq_label)
+        self.load_widget = ListView()
+        self.acq_model = ListModel()
+        self.load_widget.setModel(self.acq_model)
+        self.filt_layout.addWidget(self.load_widget)
+
+        self.acq_number_label = QLabel('Acquisition')
+        self.acq_number = QSpinBox()
+        self.acq_number.valueChanged.connect(self.spinbox)
+        self.filt_layout.addRow(self.acq_number_label, self.acq_number)
 
         self.b_start_label = QLabel('Baseline start')
         self.b_start_edit = LineEdit()
@@ -123,8 +123,11 @@ class filterWidget(QWidget):
         self.filt_layout.addRow(self.low_width_label, self.low_width_edit)
         
         self.window_label = QLabel('Window type')
-        self.window_edit = LineEdit()
-        self.window_edit.setEnabled(True)
+        windows = ['hann', 'hamming', 'blackmmaharris', 'barthann', 'nuttall',
+            'blackman']
+        self.window_edit = QComboBox(self)
+        self.window_edit.addItems(windows)
+        self.window_edit.setObjectName('window_edit')
         self.filt_layout.addRow(self.window_label, self.window_edit)
         
         self.polyorder_label = QLabel('Polyorder')
@@ -133,52 +136,60 @@ class filterWidget(QWidget):
         self.polyorder_edit.setEnabled(True)
         self.filt_layout.addRow(self.polyorder_label, self.polyorder_edit)
         
-        #Plot acquisition button
-        # self.plot_acq = QPushButton('Plot acq')
-        # self.plot_acq.clicked.connect(self.plot_acq_button)
-        # self.plot_acq.setMaximumSize(QSize(300,25))
-        # self.filt_layout.addRow(self.plot_acq)
-        
         self.plot_filt = QPushButton('Plot acq')
         self.plot_filt.clicked.connect(self.plot_filt_button)
-        self.plot_filt.setMaximumSize(QSize(300,25))
+        # self.plot_filt.setMaximumSize(QSize(300,25))
         self.filt_layout.addRow(self.plot_filt)
         
         self.clear_plot = QPushButton('Clear plot')
         self.clear_plot.clicked.connect(self.clear_plot_button)
         self.clear_plot.setMaximumSize(QSize(300,25))
         self.filt_layout.addRow(self.clear_plot)
+
+        #Setup for the drag and drop load layout
+        self.del_sel_button = QPushButton('Delete selection')
+        self.filt_layout.addRow(self.del_sel_button)
+        self.del_sel_button.clicked.connect(self.del_selection)
         
-        # self.color_list = ['b', 'g', 'r', 'c', 'm', 'y']
         self.plot_list = {}
         self.pencil_list = []
         self.counter = 0
 
+
+    def del_selection(self):
+        indexes = self.load_widget.selectedIndexes()
+        if len(indexes) > 0:
+            for index in sorted(indexes, reverse=True):
+                del self.acq_model.acq_list[index.row()]
+                del self.acq_model.fname_list[index.row()]
+            self.acq_model.layoutChanged.emit()
+            self.load_widget.clearSelection()
     
+
     def plot_filt_button(self):
-        h = Acquisition(self.acq_id_edit.toText(), 
-                             self.acquisition_number.text(), 
-                             self.sample_rate_edit.toInt(), 
-                             self.b_start_edit.toInt(), 
-                             self.b_end_edit.toInt(), 
-                             self.filter_selection.currentText(), 
-                             self.order_edit.toInt(), 
-                             self.high_pass_edit.toInt(), 
-                             self.high_width_edit.toInt(), 
-                             self.low_pass_edit.toInt(), 
-                             self.low_width_edit.toInt(), 
-                             self.window_edit.toText(), 
-                             self.polyorder_edit.toInt())  
+        acq_components = load_scanimage_file(self.acq_model.fname_list[0])
+        h = Acquisition(acq_components=acq_components,
+                        sample_rate=self.sample_rate_edit.toInt(), 
+                        baseline_start=self.b_start_edit.toInt(), 
+                        baseline_end=self.b_end_edit.toInt(), 
+                        filter_type=self.filter_selection.currentText(), 
+                        order=self.order_edit.toInt(), 
+                        high_pass=self.high_pass_edit.toInt(), 
+                        high_width=self.high_width_edit.toInt(), 
+                        low_pass=self.low_pass_edit.toInt(), 
+                        low_width=self.low_width_edit.toInt(), 
+                        window=self.window_edit.currentText(), 
+                        polyorder=self.polyorder_edit.toInt())  
         h.filter_array()
         if len(self.plot_list.keys()) == 0:
             pencil=pg.mkPen(color='w', alpha=int(0.75*255))
         else:
             pencil = pg.mkPen(color=pg.intColor(self.counter))
         plot_item = self.p1.plot(x=h.x_array, 
-                              y = h.filtered_array,
-                              pen=pencil,
-                              name = (self.filter_selection.currentText()
-                                      + '_' + str(self.counter)))
+                            y = h.filtered_array,
+                            pen=pencil,
+                            name = (self.filter_selection.currentText()
+                                    + '_' + str(self.counter)))
         self.legend.addItem(plot_item,  self.filter_selection.currentText()
                             + '_' + str(self.counter))
         self.plot_list[str(self.counter)] = h
@@ -186,12 +197,13 @@ class filterWidget(QWidget):
         self.pencil_list += [pencil]
 
     
-    def spinbox(self, h):
+    def spinbox(self, number):
         if len(self.plot_list.keys()) > 1:
             self.p1.clear()
-            for i, j in zip(self.plot_list.keys(), self.pencil_list):
-                h = Acquisition(self.plot_list[i].prefix, 
-                             self.acquisition_number.text(), 
+            for i, j in enumerate(self.plot_list, self.pencil_list):
+                acq_components = load_scanimage_file(
+                                    self.acq_model.fname_list[number])
+                h = Acquisition(acq_components, 
                              self.plot_list[i].sample_rate, 
                              self.plot_list[i].baseline_start, 
                              self.plot_list[i].baseline_end, 
@@ -203,14 +215,12 @@ class filterWidget(QWidget):
                              self.plot_list[i].low_width, 
                              self.plot_list[i].window, 
                              self.plot_list[i].polyorder)
-                self.h.filter_array()
-                self.p1.plot(x=h.x_array, y = h.filtered_array, pen=j)
-            # self.plot_list[str(self.counter)] = h
-            
+                h.filter_array()
+                self.p1.plot(x=h.x_array, y = h.filtered_array, pen=j) 
         elif len(self.plot_list.keys()) == 1:
             self.p1.clear()
-            h = Acquisition(self.plot_list['0'].prefix, 
-                             self.acquisition_number.text(),
+            acq_components = load_scanimage_file(self.acq_model.fname_list[number])
+            h = Acquisition(acq_components,
                              self.plot_list['0'].sample_rate, 
                              self.plot_list['0'].baseline_start, 
                              self.plot_list['0'].baseline_end, 
@@ -222,7 +232,7 @@ class filterWidget(QWidget):
                              self.plot_list['0'].low_width, 
                              self.plot_list['0'].window,
                              self.plot_list['0'].polyorder)
-            self.h.filter_array()
+            h.filter_array()
             self.p1.plot(x=h.x_array, y = h.filtered_array,      
                                      pen = self.pencil_list[0]) 
     
