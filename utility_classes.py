@@ -259,11 +259,13 @@ class YamlWorker:
 
 
 class ListView(QListView):
-
+    '''
+    This is a custom listview that allows for drag and drop loading of
+    scanimage matlab files.
+    '''
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
-        # self.item_list = []
         self.setSelectionMode(self.MultiSelection)
         self.setDropIndicatorShown(True)
 
@@ -299,9 +301,7 @@ class ListView(QListView):
             for url in e.mimeData().urls():
                 fname = PurePath(str(url.toLocalFile()))
                 if fname not in self.model().fname_list:
-                    self.model().fname_list += [fname]
-                    acq_components = load_scanimage_file(fname)
-                    self.model().acq_list += [acq_components]
+                    self.model().add_acq(fname)
             self.model().acq_list.sort(key=lambda x: int(x[0].split('_')[-1]))
             self.model().fname_list.sort(key=lambda x: int(x.stem.split('_')[-1]))
             self.model().layoutChanged.emit()
@@ -327,6 +327,12 @@ class ListModel(QAbstractListModel):
         if role == Qt.ItemDataRole.DisplayRole:
             name = self.header_name
             return name
+
+
+    def add_acq(self, fname):
+        acq_components = load_scanimage_file(fname)
+        self.fname_list += [fname]
+        self.acq_list += [acq_components]
 
     def rowCount(self, index):
         return len(self.acq_list)
@@ -444,6 +450,7 @@ class ListView2(QListView):
         else:
             e.ignore()
 
+
 class ItemDelegate(QAbstractItemDelegate):
     def createEditor(self, parent, options, index):
         widget = CustomPlotWidget()
@@ -454,6 +461,7 @@ class ItemDelegate(QAbstractItemDelegate):
 
     def setModelData(self, editor, model, index):
         pass
+
 
 class CustomPlotWidget(QWidget):
     def __init__(self):

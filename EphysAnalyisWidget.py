@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (QPushButton, QHBoxLayout, QComboBox,
 import qdarkstyle
 
 from currentClampWidget import currentClampWidget
-from miniAnalysisWidget import miniAnalysisWidget
+from miniAnalysisWidget import MiniAnalysisWidget
 from oEPSCWidget import oEPSCWidget
 from filterWidget import filterWidget
 from utility_classes import LineEdit
@@ -36,7 +36,7 @@ class MainWindow(QMainWindow):
         #Set the menu bar
         self.bar = self.menuBar()
         self.file_menu = self.bar.addMenu('File')
-        # self.prefences_menu = self.bar.addMenu('Preferences')        
+        self.preferences_menu = self.bar.addMenu('Preferences')        
         
         self.openFile = QAction('Open', self)
         self.openFile.setStatusTip('Open file')
@@ -50,15 +50,18 @@ class MainWindow(QMainWindow):
         self.saveFile.triggered.connect(self.save_as)
         self.file_menu.addAction(self.saveFile)
         
-        self.loadPref = QAction('Load preferences', self)
-        self.loadPref.setStatusTip('Load preferences')
+        self.loadPref = QAction('Load analysis preferences', self)
+        self.loadPref.setStatusTip('Load analysis preferences')
         self.loadPref.triggered.connect(self.load_preferences)
         self.file_menu.addAction(self.loadPref)
         
-        self.savePref = QAction('Save preferences', self)
-        self.savePref.setStatusTip('Save preferences')
+        self.savePref = QAction('Save analysis preferences', self)
+        self.savePref.setStatusTip('Save analysis preferences')
         self.savePref.triggered.connect(self.save_preferences)
         self.file_menu.addAction(self.savePref)
+        
+        self.setApplicationPreferences = QAction('Set preferences', self)
+        self.setApplicationPreferences.triggered.connect(self.set_preferences)
         
         self.tool_bar = QToolBar()
         self.addToolBar(self.tool_bar)
@@ -78,11 +81,11 @@ class MainWindow(QMainWindow):
         self.tool_bar.addWidget(self.button)
         
         self.directory = str(os.chdir(expanduser("~")))
-    
+
     
     def set_widget(self, text):
         if text == 'Mini Analysis':
-            self.central_widget = miniAnalysisWidget()
+            self.central_widget = MiniAnalysisWidget()
         elif text == 'oEPSC':
             self.central_widget = oEPSCWidget()
         elif text == 'Current Clamp':
@@ -140,10 +143,13 @@ class MainWindow(QMainWindow):
             self.central_widget.save_preferences(save_filename)
                     
 
+    def set_preferences(self):
+        pass
 
 def run_program():
     app = QApplication([])
-    app.setStyleSheet(qdarkstyle.load_stylesheet())
+    dark_stylesheet = qdarkstyle.load_stylesheet()
+    app.setStyleSheet(dark_stylesheet)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

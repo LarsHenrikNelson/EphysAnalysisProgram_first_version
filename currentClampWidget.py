@@ -301,8 +301,7 @@ class currentClampWidget(QWidget):
             self.pbar.setValue(0)
             self.analysis_list = np.arange(self.start_acq_edit.toInt(),
                                       self.end_acq_edit.toInt() + 1).tolist()
-            for count, i in enumerate(self.acq_model.fname_list):
-                acq_components = load_scanimage_file(i)
+            for count, acq_components in enumerate(self.acq_model.acq_list):
                 x = CurrentClamp(
                         acq_components=acq_components,
                         sample_rate=self.sample_rate_edit.toInt(), 

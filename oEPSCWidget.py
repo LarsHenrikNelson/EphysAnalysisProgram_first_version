@@ -37,14 +37,16 @@ class oEPSCWidget(QWidget):
         
         self.parent = parent
         
+        self.parent_layout = QVBoxLayout()
         self.main_layout = QHBoxLayout()
-        self.setLayout(self.main_layout)
+        self.parent_layout.addLayout(self.main_layout)
+        self.setLayout(self.parent_layout)
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
         self.pbar = QProgressBar()
         self.pbar.setValue(0)
         self.pbar.setFormat('')
-        self.main_layout.addWidget(self.pbar)
+        self.parent_layout.addWidget(self.pbar)
         self.tab1 = QWidget()
         self.tab2_scroll = QScrollArea()
         self.tab2_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -65,10 +67,12 @@ class oEPSCWidget(QWidget):
         self.input_layout_2 = QFormLayout()
         self.oepsc_view = ListView()
         self.oepsc_model = ListModel()
+        self.oepsc_view.setModel(self.oepsc_model)
         self.form_layouts.addWidget(self.oepsc_view)
         self.form_layouts.addLayout(self.input_layout_1)
         self.lfp_view = ListView()
         self.lfp_model = ListModel()
+        self.lfp_view.setModel(self.lfp_model)
         self.form_layouts.addWidget(self.lfp_view)
         self.form_layouts.addLayout(self.input_layout_2)
         self.tab1.setLayout(self.tab1_layout)
@@ -92,19 +96,19 @@ class oEPSCWidget(QWidget):
         
         #Plots
         self.oepsc_plot = pg.PlotWidget()
-        self.oepsc_plot.setMinimumSize(300, 300)
+        self.oepsc_plot.setMinimumWidth(500)
         self.lfp_plot = pg.PlotWidget()
-        self.lfp_plot.setPreferredSize(300, 300)
+        self.lfp_plot.setMinimumWidth(500)
         self.oepsc_plot_layout = QHBoxLayout()
         self.lfp_plot_layout = QHBoxLayout()
         self.o_info_layout = QFormLayout()
         self.lfp_info_layout = QFormLayout()
         self.plot_layout = QHBoxLayout()
         self.oepsc_plot_layout.addLayout(self.o_info_layout, 0)
-        self.oepsc_plot_layout.addWidget(self.oepsc_plot, 1)
+        self.oepsc_plot_layout.addWidget(self.oepsc_plot, 15)
         self.lfp_plot_layout.addLayout(self.lfp_info_layout, 0)
         self.lfp_plot_layout.addWidget(self.lfp_plot, 1)
-        self.plot_layout.addLayout(self.oepsc_plot_layout, 1)
+        self.plot_layout.addLayout(self.oepsc_plot_layout, 15)
         self.plot_layout.addLayout(self.lfp_plot_layout, 1)
         self.tab2_sublayout.addLayout(self.plot_layout, 1)
         
@@ -363,17 +367,17 @@ class oEPSCWidget(QWidget):
         self.acquisition_number_label = QLabel('Acq number')
         self.acquisition_number = QSpinBox()
         self.acquisition_number.valueChanged.connect(self.acq_spinbox)
-        self.analysis_buttons_layout.addRow(self.acquisition_number_label, 
+        self.o_info_layout.addRow(self.acquisition_number_label, 
                                      self.acquisition_number)
         self.acquisition_number.setEnabled(False)
         
         self.epoch_label = QLabel('Epoch')
         self.epoch_number = QLineEdit()
-        self.analysis_buttons_layout.addRow(self.epoch_label,
+        self.o_info_layout.addRow(self.epoch_label,
                                             self.epoch_number)
         
         self.final_analysis_button = QPushButton('Final analysis')
-        self.analysis_buttons_layout.addRow(self.final_analysis_button)
+        self.o_info_layout.addRow(self.final_analysis_button)
         self.final_analysis_button.clicked.connect(self.final_analysis)
         self.final_analysis_button.setEnabled(False)
         
@@ -438,98 +442,45 @@ class oEPSCWidget(QWidget):
         self.last_oepsc_point_clicked = []
         self.oepsc_acqs_deleted = 0
         self.lfp_acqs_deleted = 0
-        self.l_analysis_list = []
-        self.o_analysis_list = []
-        self.file_list_l = []
-        self.file_list_o = []
+        self.oepsc_list = []
+        self.lfp_list = []
         self.pref_dict = {}
         self.deleted_lfp_acqs = {}
         self.deleted_opesc_acqs = {}
         self.calc_param_clicked = True
-
-
-    def del_oepsc_selection(self):
-        indexes = self.load_widget.selectedIndexes()
-        if len(indexes) > 0:
-            for index in sorted(indexes, reverse=True):
-                del self.oepsc_model.acq_list[index.row()]
-                del self.oepsc_model.fname_list[index.row()]
-            self.oepsc_model.layoutChanged.emit()
-            self.oepsc_view.clearSelection()    
-
-
-    def del_lfp_selection(self):
-        indexes = self.load_widget.selectedIndexes()
-        if len(indexes) > 0:
-            for index in sorted(indexes, reverse=True):
-                del self.lfp_model.acq_list[index.row()]
-                del self.lfp_model.fname_list[index.row()]
-            self.lfp_model.layoutChanged.emit()
-            self.lfp_view.clearSelection()    
-
-
-    # def load_files(self):
-    #     if self.o_analyze.isChecked():
-    #         file_extension_o = self.o_acq_id_edit.toText() + '_*.mat'
-    #         file_list_o = glob(file_extension_o)
-    #         filename_o = self.o_acq_id_edit.toText() + '_'
-    #         filtered_list_o = [ x for x in file_list_o if "avg" not in x ]
-    #         cleaned_o = [n.replace(filename_o, '') for n in filtered_list_o]
-    #         self.file_list_o = sorted([int(n.replace('.mat', ''))
-    #                                  for n in cleaned_o])
-    #     else:
-    #         file_list_o = []
-        
-    #     if self.lfp_analyze.isChecked():
-    #         file_extension_l = self.lfp_acq_id_edit.toText() + '_*.mat'
-    #         file_list_l = glob(file_extension_l)
-    #         filename_l = self.lfp_acq_id_edit.toText() + '_'
-    #         filtered_list_l = [ x for x in file_list_l if "avg" not in x ]
-    #         cleaned_l = [n.replace(filename_l, '') for n in filtered_list_l]
-    #         self.file_list_l = sorted([int(n.replace('.mat', ''))
-    #                                  for n in cleaned_l])
-    #     else:
-    #         file_list_l = []
-    
+        self.final_data = None
     
     def analyze(self):
-        self.load_files()
-        if (len(self.oepsc_model.fname_list) == 0
-               and len(self.lfp_model.fname_list) == 0):
+        if (len(self.oepsc_model.acq_list) == 0
+               and len(self.lfp_model.acq_list) == 0):
             self.file_does_not_exist()
-            pass
-            return
-        if len(self.oepsc_model.fname_list) != 0:
+        if len(self.oepsc_model.acq_list) != 0:
             self.delete_oepsc_button.setEnabled(True)
-            for count, i in enumerate(self.o_analysis_list):
-                if i in self.file_list_o:
-                    oepsc = oEPSC(self.o_acq_id_edit.toText(), 
-                        i, 
-                        self.o_sample_rate_edit.toInt(), 
-                        self.o_b_start_edit.toInt(), 
-                        self.o_b_end_edit.toInt(), 
-                        filter_type=self.o_filter_selection.currentText(),
-                        order=self.o_order_edit.toInt(), 
-                        high_pass=self.o_high_pass_edit.toInt(), 
-                        high_width=self.o_high_width_edit.toInt(), 
-                        low_pass=self.o_low_pass_edit.toInt(), 
-                        low_width=self.o_low_width_edit.toInt(), 
-                        window=self.o_window_edit.currentText(), 
-                        polyorder=self.o_polyorder_edit.toInt(),
-                        pulse_start=self.o_pulse_start_edit.toInt(),
-                        n_window_start=self.o_neg_start_edit.toInt(),
-                        n_window_end=self.o_neg_end_edit.toInt(),
-                        p_window_start=self.o_pos_start_edit.toInt(),
-                        p_window_end=self.o_pos_end_edit.toInt())
-                    self.oepsc_acq_dict[str(i)] = oepsc
-                else:
-                    self.o_analysis_list.remove(i)       
-        if len(self.lfp_model.fname_list) != 0:
+            for count, acq_components in enumerate(self.oepsc_model.acq_list):
+                oepsc = oEPSC(
+                    acq_components=acq_components,
+                    sample_rate=self.o_sample_rate_edit.toInt(), 
+                    baseline_start=self.o_b_start_edit.toInt(), 
+                    baseline_end=self.o_b_end_edit.toInt(), 
+                    filter_type=self.o_filter_selection.currentText(),
+                    order=self.o_order_edit.toInt(), 
+                    high_pass=self.o_high_pass_edit.toInt(), 
+                    high_width=self.o_high_width_edit.toInt(), 
+                    low_pass=self.o_low_pass_edit.toInt(), 
+                    low_width=self.o_low_width_edit.toInt(), 
+                    window=self.o_window_edit.currentText(), 
+                    polyorder=self.o_polyorder_edit.toInt(),
+                    pulse_start=self.o_pulse_start_edit.toInt(),
+                    n_window_start=self.o_neg_start_edit.toInt(),
+                    n_window_end=self.o_neg_end_edit.toInt(),
+                    p_window_start=self.o_pos_start_edit.toInt(),
+                    p_window_end=self.o_pos_end_edit.toInt())
+                self.oepsc_acq_dict[oepsc.acq_number] = oepsc     
+        if len(self.lfp_model.acq_list) != 0:
             self.delete_lfp_button.setEnabled(True)
             self.set_fv_button.setEnabled(True)
             self.set_fp_button.setEnabled(True)
-            for count, i in enumerate(self.lfp_model.fname_list):
-                acq_components = load_scanimage_file(i)
+            for count, acq_components in enumerate(self.lfp_model.acq_list):
                 lfp = LFP(
                     acq_components=acq_components, 
                     sample_rate=self.lfp_sample_rate_edit.toInt(), 
@@ -546,10 +497,12 @@ class oEPSCWidget(QWidget):
                     pulse_start=self.lfp_pulse_start_edit.toInt())
                 self.lfp_acq_dict[lfp.acq_number] = lfp
         # self.pbar.setValue(int(((count+1)/len(self.analysis_list))*100))
-        if len(self.oepsc_model.fname_list) != 0:
+        if len(self.oepsc_model.acq_list) != 0:
             acq_number = list(self.oepsc_acq_dict.keys())
         else:
             acq_number = list(self.lfp_acq_dict.keys())
+        self.oepsc_list = list(self.oepsc_acq_dict.keys())
+        self.lfp_list = list(self.lfp_acq_dict.keys())
         self.acquisition_number.setMaximum(int(acq_number[-1]))
         self.acquisition_number.setMinimum(int(acq_number[0])) 
         self.acquisition_number.setValue(int(acq_number[0]))
@@ -567,67 +520,69 @@ class oEPSCWidget(QWidget):
         self.lfp_plot.clear()
         self.last_oepsc_point_clicked = []
         self.last_lfp_point_clicked = []
-        if (int(self.acquisition_number.value()) in self.o_analysis_list):
-            self.oepsc_object = self.oepsc_acq_dict[str(
-                self.acquisition_number.text())]
-            self.oepsc_acq_plot = pg.PlotDataItem(
-                x=self.oepsc_object.x_array, 
-                y=self.oepsc_object.filtered_array, 
-                name=str('oepsc_' + self.acquisition_number.text()),
-                symbol='o', symbolSize=8, symbolBrush=(0,0,0,0),
-                symbolPen=(0,0,0,0))
-            self.oepsc_peak_plot = pg.PlotDataItem(
-                x=self.oepsc_object.plot_peak_x(),
-                y=self.oepsc_object.plot_peak_y(), symbol='o', symbolSize=8,
-                symbolBrush='m', pen=None)
-            self.oepsc_acq_plot.sigPointsClicked.connect(self.oepsc_plot_clicked)
-            self.oepsc_plot.addItem(self.oepsc_acq_plot)
-            self.oepsc_plot.addItem(self.oepsc_peak_plot)
-            self.oepsc_plot.setXRange(self.o_pulse_start_edit.toInt()-10,
-                self.o_b_start_edit.toInt()+350)
-            self.oepsc_amp_edit.setText(
-                str(self.round_sig(self.oepsc_object.peak_y)))
-        if (int(self.acquisition_number.value()) in self.l_analysis_list):
-            self.lfp_object = self.lfp_acq_dict[str(
-                self.acquisition_number.text())]
-            self.lfp_acq_plot = pg.PlotDataItem(
-                x=self.lfp_object.x_array, 
-                y=self.lfp_object.filtered_array, 
-                name=str('oepsc_' + self.acquisition_number.text()),
-                symbol='o', symbolSize=10, symbolBrush=(0,0,0,0),
-                symbolPen=(0,0,0,0))
-            self.lfp_points = pg.PlotDataItem(
-                x=self.lfp_object.plot_elements_x(),
-                y=self.lfp_object.plot_elements_y(), symbol='o', symbolSize=8,
-                symbolBrush='m', pen=None)
-            self.lfp_reg = pg.PlotDataItem(
-                x=(self.lfp_object.slope_x
-                   /self.lfp_object.s_r_c),
-                y=self.lfp_object.reg_line, pen='g')
-            self.lfp_acq_plot.sigPointsClicked.connect(self.lfp_plot_clicked)
-            self.lfp_plot.addItem(self.lfp_acq_plot)
-            self.lfp_plot.addItem(self.lfp_points)
-            self.lfp_plot.addItem(self.lfp_reg)
-            self.lfp_plot.setXRange(self.lfp_pulse_start_edit.toInt()-10,
-                self.lfp_b_start_edit.toInt()+250)
-            self.lfp_fv_edit.setText(
-                str(self.round_sig(self.lfp_object.fv_y)))
-            self.lfp_fp_edit.setText(
-                str(self.round_sig(self.lfp_object.fp_y))) 
-            self.lfp_fp_slope_edit.setText(
-                str(self.round_sig(self.lfp_object.slope)))
-        if self.o_analyze.isChecked():
-            self.epoch_number.setText(self.oepsc_object.epoch)
-        else:
-            self.epoch_number.setText(self.lfp_object.epoch)
+        if len(self.oepsc_model.acq_list) != 0:
+            if str(h) in self.oepsc_list:
+                self.oepsc_object = self.oepsc_acq_dict[str(
+                    self.acquisition_number.text())]
+                self.oepsc_acq_plot = pg.PlotDataItem(
+                    x=self.oepsc_object.x_array, 
+                    y=self.oepsc_object.filtered_array, 
+                    name=str('oepsc_' + self.acquisition_number.text()),
+                    symbol='o', symbolSize=8, symbolBrush=(0,0,0,0),
+                    symbolPen=(0,0,0,0))
+                self.oepsc_peak_plot = pg.PlotDataItem(
+                    x=self.oepsc_object.plot_peak_x(),
+                    y=self.oepsc_object.plot_peak_y(), symbol='o', symbolSize=8,
+                    symbolBrush='m', pen=None)
+                self.oepsc_acq_plot.sigPointsClicked.connect(self.oepsc_plot_clicked)
+                self.oepsc_plot.addItem(self.oepsc_acq_plot)
+                self.oepsc_plot.addItem(self.oepsc_peak_plot)
+                self.oepsc_plot.setXRange(self.o_pulse_start_edit.toInt()-10,
+                    self.o_b_start_edit.toInt()+350)
+                self.oepsc_amp_edit.setText(
+                    str(self.round_sig(self.oepsc_object.peak_y)))
+        if len(self.lfp_model.acq_list) != 0:
+            if str(h) in self.lfp_list:
+                self.lfp_object = self.lfp_acq_dict[str(
+                    self.acquisition_number.text())]
+                self.lfp_acq_plot = pg.PlotDataItem(
+                    x=self.lfp_object.x_array, 
+                    y=self.lfp_object.filtered_array, 
+                    name=str('oepsc_' + self.acquisition_number.text()),
+                    symbol='o', symbolSize=10, symbolBrush=(0,0,0,0),
+                    symbolPen=(0,0,0,0))
+                self.lfp_points = pg.PlotDataItem(
+                    x=self.lfp_object.plot_elements_x(),
+                    y=self.lfp_object.plot_elements_y(), symbol='o', symbolSize=8,
+                    symbolBrush='m', pen=None)
+                self.lfp_reg = pg.PlotDataItem(
+                    x=(self.lfp_object.slope_x
+                    /self.lfp_object.s_r_c),
+                    y=self.lfp_object.reg_line, pen='g')
+                self.lfp_acq_plot.sigPointsClicked.connect(self.lfp_plot_clicked)
+                self.lfp_plot.addItem(self.lfp_acq_plot)
+                self.lfp_plot.addItem(self.lfp_points)
+                self.lfp_plot.addItem(self.lfp_reg)
+                self.lfp_plot.setXRange(self.lfp_pulse_start_edit.toInt()-10,
+                    self.lfp_b_start_edit.toInt()+250)
+                self.lfp_fv_edit.setText(
+                    str(self.round_sig(self.lfp_object.fv_y)))
+                self.lfp_fp_edit.setText(
+                    str(self.round_sig(self.lfp_object.fp_y))) 
+                self.lfp_fp_slope_edit.setText(
+                    str(self.round_sig(self.lfp_object.slope)))
+            if len(self.oepsc_model.acq_list) != 0:
+                self.epoch_number.setText(self.oepsc_object.epoch)
+            else:
+                self.epoch_number.setText(self.lfp_object.epoch)
         self.acquisition_number.setEnabled(True)
 
 
     def reset(self):
         self.oepsc_plot.clear()
         self.lfp_plot.clear()
-        self.o_analysis_list = []
-        self.l_analysis_list = []
+        self.oepsc_list = []
+        self.lfp_list = []
         self.oepsc_acq_dict = {}
         self.lfp_acq_dict = {}
         del self.final_data
@@ -643,6 +598,7 @@ class oEPSCWidget(QWidget):
         self.final_analysis_button.setEnabled(False)
         self.set_fv_button.setEnabled(False)
         self.set_fp_button.setEnabled(False)
+        self.final_data = None
     
     
     def oepsc_plot_clicked(self, item, points):
@@ -752,6 +708,8 @@ class oEPSCWidget(QWidget):
         
     
     def final_analysis(self):
+        if self.final_data is not None:
+            del self.final_data
         self.final_analysis_button.setEnabled(False)
         self.calc_param_clicked = True
         if (len(self.oepsc_model.fname_list) != 0
@@ -767,6 +725,7 @@ class oEPSCWidget(QWidget):
         self.raw_datatable.setData(self.final_data.raw_df.T.to_dict('dict'))
         self.final_datatable.setData(
             self.final_data.final_df.T.to_dict('dict'))
+        self.final_analysis_button.setEnabled(True)
        
         
     def save_as(self, save_filename):
@@ -802,7 +761,6 @@ class oEPSCWidget(QWidget):
         file_list = sorted(Path.glob('*json'))
         if not file_list:
             self.file_list = None
-            pass
         else:
             for i in file_list:
                 with open(i) as file:

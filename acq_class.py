@@ -192,12 +192,10 @@ class LFP(Acquisition):
     '''
     
     
-    def __init__(self, sample_rate, baseline_start, baseline_end, 
-                 filter_type='None', order=None, high_pass=None,
+    def __init__(self, filter_type='None', order=None, high_pass=None,
                  high_width=None, low_pass=None, low_width=None, window=None,
-                 polyorder=None, pulse_start=1000, **kwargs):
-        super().__init__(**kwargs)
-        
+                 polyorder=None, pulse_start=1000, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.pulse_start = int(pulse_start*self.s_r_c)
         self.fp_x = np.nan
         self.fp_y = np.nan
@@ -414,8 +412,8 @@ class LFP(Acquisition):
 class oEPSC(Acquisition):
     def __init__(self, pulse_start=1000, n_window_start=1001,
                  n_window_end=1050, p_window_start=1045,
-                 p_window_end=1055, **kwargs):
-        super().__init__(**kwargs)
+                 p_window_end=1055, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.pulse_start = int(pulse_start*self.s_r_c)
         self.n_window_start = int(n_window_start*self.s_r_c)
         self.n_window_end = int(n_window_end*self.s_r_c)
@@ -1094,7 +1092,7 @@ class MiniAnalysis(Acquisition):
                                     and event.rise_time > self.min_rise_time
                                     and event.final_tau_x > self.min_decay_time):
                                     self.postsynaptic_events += [event]
-                                    self.final_events += [peak]
+                                    self.final_events += [event.event_peak_x]
                                     event_time += [event.event_peak_x]
                                     event_number +=1
                                 else:
@@ -1102,7 +1100,7 @@ class MiniAnalysis(Acquisition):
                         else:
                             if event.amplitude > self.amp_threshold:
                                     self.postsynaptic_events += [event]
-                                    self.final_events += [peak]
+                                    self.final_events += [event.event_peak_x]
                                     event_time += [event.event_peak_x]
                                     event_number +=1
                             else:
@@ -1123,7 +1121,7 @@ class MiniAnalysis(Acquisition):
                     and event.rise_time > self.min_rise_time
                     and event.final_tau_x > self.min_decay_time):
                         self.postsynaptic_events += [event]
-                        self.final_events += [peak]
+                        self.final_events += [event.event_peak_x]
                         event_time += [event.event_peak_x]
                         event_number +=1
                 else:
@@ -1134,7 +1132,7 @@ class MiniAnalysis(Acquisition):
         event = PostSynapticEvent(self.acq_number, x, self.final_array,
                                   self.sample_rate, self.curve_fit_decay,
                                   self.curve_fit_type)
-        self.final_events += [x]
+        self.final_events += [event.event_peak_x]
         self.postsynaptic_events += [event]
     
     
@@ -1149,10 +1147,8 @@ class MiniAnalysis(Acquisition):
         #to the end of the postsynaptic event list. This prevents a bunch of
         #issues since you cannot modify the position of plot elements in the 
         #pyqtgraph data items list.
-        self.postsynaptic_events = [x for _, x in
-            sorted(zip(self.final_events, self.postsynaptic_events))]
-        self.final_events = sorted(self.final_events)
-        
+        self.postsynaptic_events.sort(key=lambda x: x.event_peak_x)
+        self.final_events.sort()
         self.acq_number_list = [i.acq_number for i in
                     self.postsynaptic_events]
         self.amplitudes = [i.amplitude for i in 

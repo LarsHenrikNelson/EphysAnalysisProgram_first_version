@@ -18,11 +18,8 @@ from utilities import load_scanimage_file
 from utility_classes import (LineEdit,  ListView, ListModel)
 
 class AcqInspectionWidget(QWidget):
-    def __init__(self, parent=None):
-        
-        super(AcqInspectionWidget, self).__init__(parent)
-        
-        self.parent = parent
+    def __init__(self):
+        super().__init__()
     
         # self.path_layout = QHBoxLayout()
         self.plot_layout = QHBoxLayout()
@@ -47,16 +44,11 @@ class AcqInspectionWidget(QWidget):
         self.acq_dict = {}
         self.file_list = []
 
+
     def setFileList(self, file_list):
         self.file_list = file_list
         for i in self.file_list:
-            acq_components = load_scanimage_file(i)
-            # h = Acquisition(acq_components, 
-            #                 sample_rate=self.sample_rate, 
-            #                 baseline_start=0, 
-            #                 baseline_end=10, 
-            #                 filter_type=None)
-            self.acq_dict[acq_components[0].split("_")[-1]] = acq_components
+            self.acq_dict[i[1]] = i
         self.acq_number.setMinimum(int(list(self.acq_dict.keys())[0]))
         self.acq_number.setMaximum(int(list(self.acq_dict.keys())[-1]))
         

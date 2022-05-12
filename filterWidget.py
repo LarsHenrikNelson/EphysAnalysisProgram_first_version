@@ -200,7 +200,7 @@ class filterWidget(QWidget):
     def spinbox(self, number):
         if len(self.plot_list.keys()) > 1:
             self.p1.clear()
-            for i, j in enumerate(self.plot_list, self.pencil_list):
+            for i, j in zip(self.plot_list, self.pencil_list):
                 acq_components = load_scanimage_file(
                                     self.acq_model.fname_list[number])
                 h = Acquisition(acq_components, 
