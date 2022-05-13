@@ -23,6 +23,7 @@ from PyQt5.QtCore import Qt, QSize
 import pyqtgraph as pg
 
 from acq_class import LFP, oEPSC, LoadoEPSC, LoadLFP
+from AcqInspectionWidget import AcqInspectionWidget
 from final_analysis_classes import FinalEvokedCurrent
 from load_classes import LoadEvokedCurrentData
 from utilities import load_scanimage_file
@@ -54,8 +55,10 @@ class oEPSCWidget(QWidget):
         self.tab2_scroll.setWidgetResizable(True)
         self.tab2 = QWidget()
         self.tab2_scroll.setWidget(self.tab2)
+        self.tab3 = QTabWidget()
         self.tabs.addTab(self.tab1, 'Setup')
-        self.tabs.addTab(self.tab2_scroll, 'Analysis')     
+        self.tabs.addTab(self.tab2_scroll, 'Analysis')   
+        self.tabs.addTab(self.tab3, 'Final Data')  
         
         self.setStyleSheet('''QTabWidget::tab-bar 
                                           {alignment: left;}''')
@@ -63,41 +66,59 @@ class oEPSCWidget(QWidget):
         #Tab 1 layout
         self.tab1_layout = QVBoxLayout()
         self.form_layouts = QHBoxLayout()
+        self.view_layout_1 = QVBoxLayout()
+        self.view_layout_2 = QVBoxLayout()
         self.input_layout_1 = QFormLayout()
         self.input_layout_2 = QFormLayout()
         self.oepsc_view = ListView()
         self.oepsc_model = ListModel()
         self.oepsc_view.setModel(self.oepsc_model)
-        self.form_layouts.addWidget(self.oepsc_view)
+        self.view_layout_1.addWidget(self.oepsc_view)
+        self.inspect_oepsc_acqs = QPushButton('Inspect acquistions')
+        self.inspect_oepsc_acqs.clicked.connect(lambda checked:
+            self.inspect_acqs(self.oepsc_model))
+        self.view_layout_1.addWidget(self.inspect_oepsc_acqs)
+        self.del_oepsc_sel = QPushButton('Delete selection')
+        self.del_oepsc_sel.clicked.connect(lambda checked:
+            self.del_selection(self.oepsc_model, self.oepsc_view))
+        self.view_layout_1.addWidget(self.del_oepsc_sel)
+        self.form_layouts.addLayout(self.view_layout_1)
         self.form_layouts.addLayout(self.input_layout_1)
         self.lfp_view = ListView()
         self.lfp_model = ListModel()
         self.lfp_view.setModel(self.lfp_model)
-        self.form_layouts.addWidget(self.lfp_view)
+        self.view_layout_2.addWidget(self.lfp_view)
+        self.inspect_lfp_acqs = QPushButton('Inspect acquistions')
+        self.inspect_lfp_acqs.clicked.connect(lambda checked:
+            self.inspect_acqs(self.lfp_model))
+        self.view_layout_2.addWidget(self.inspect_lfp_acqs)
+        self.del_lfp_sel = QPushButton('Delete selection')
+        self.del_lfp_sel.clicked.connect(lambda checked:
+            self.del_selection(self.lfp_model, self.lfp_view))
+        self.view_layout_2.addWidget(self.del_lfp_sel)
+        self.form_layouts.addLayout(self.view_layout_2)
         self.form_layouts.addLayout(self.input_layout_2)
         self.tab1.setLayout(self.tab1_layout)
         self.tab1_layout.addLayout(self.form_layouts, 0)
         
         #Tab 2 layout
-        self.tab2_layout = QVBoxLayout()
-        self.tab2_sublayout = QHBoxLayout()
+        self.tab2_layout = QHBoxLayout()
         self.analysis_buttons_layout = QFormLayout()
-        self.tab2_sublayout.addLayout(self.analysis_buttons_layout, 0)
-        self.final_data_tabs = QTabWidget()
+        self.tab2_layout.addLayout(self.analysis_buttons_layout, 0)
+        self.tab2.setLayout(self.tab2_layout)
+
+        #Tab 3 Layout
         self.raw_datatable = pg.TableWidget(sortable=False)
-        self.final_data_tabs.addTab(self.raw_datatable,
+        self.tab3.addTab(self.raw_datatable,
                                     'Raw data')
         self.final_datatable = pg.TableWidget(sortable=False)
-        self.final_data_tabs.addTab(self.final_datatable,
+        self.tab3.addTab(self.final_datatable,
                                     'Final data')
-        self.tab2_layout.addLayout(self.tab2_sublayout)
-        self.tab2_layout.addWidget(self.final_data_tabs)
-        self.tab2.setLayout(self.tab2_layout)
         
         #Plots
-        self.oepsc_plot = pg.PlotWidget()
+        self.oepsc_plot = pg.PlotWidget(labels={'left': 'Amplitude (pA)', 'bottom': 'Time (ms)'})
         self.oepsc_plot.setMinimumWidth(500)
-        self.lfp_plot = pg.PlotWidget()
+        self.lfp_plot = pg.PlotWidget(labels={'left': 'Amplitude (mV)', 'bottom': 'Time (ms)'})
         self.lfp_plot.setMinimumWidth(500)
         self.oepsc_plot_layout = QHBoxLayout()
         self.lfp_plot_layout = QHBoxLayout()
@@ -110,7 +131,7 @@ class oEPSCWidget(QWidget):
         self.lfp_plot_layout.addWidget(self.lfp_plot, 1)
         self.plot_layout.addLayout(self.oepsc_plot_layout, 15)
         self.plot_layout.addLayout(self.lfp_plot_layout, 1)
-        self.tab2_sublayout.addLayout(self.plot_layout, 1)
+        self.tab2_layout.addLayout(self.plot_layout, 1)
         
         #oEPSC buttons and line edits
         self.oepsc_input = QLabel('oEPSC')
@@ -449,7 +470,30 @@ class oEPSCWidget(QWidget):
         self.deleted_opesc_acqs = {}
         self.calc_param_clicked = True
         self.final_data = None
+        self.inspection_widget = None
     
+
+    def inspect_acqs(self, list_model):
+        #Creates a separate window to view the loaded acquisitions
+        if self.inspection_widget is None:
+            self.inspection_widget = AcqInspectionWidget()
+            self.inspection_widget.setFileList(list_model.acq_list)
+            self.inspection_widget.show()
+        else:
+            self.inspection_widget.close()
+            self.inspection_widget = None
+
+    def del_selection(self, list_model, list_view):
+        #Deletes the selected acquisitions from the list
+        indexes = list_view.selectedIndexes()
+        if len(indexes) > 0:
+            for index in sorted(indexes, reverse=True):
+                del list_model.acq_list[index.row()]
+                del list_model.fname_list[index.row()]
+            list_model.layoutChanged.emit()
+            list_view.clearSelection()
+
+
     def analyze(self):
         if (len(self.oepsc_model.acq_list) == 0
                and len(self.lfp_model.acq_list) == 0):
@@ -712,8 +756,8 @@ class oEPSCWidget(QWidget):
             del self.final_data
         self.final_analysis_button.setEnabled(False)
         self.calc_param_clicked = True
-        if (len(self.oepsc_model.fname_list) != 0
-            and len(self.lfp_model.fname_list != 0)):
+        if (len(self.oepsc_model.acq_list) != 0
+            and len(self.lfp_model.acq_list) != 0):
             self.final_data = FinalEvokedCurrent(self.oepsc_acq_dict,
                                                  self.lfp_acq_dict)
         elif (len(self.oepsc_model.fname_list) != 0

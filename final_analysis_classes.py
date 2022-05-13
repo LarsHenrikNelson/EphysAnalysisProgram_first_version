@@ -501,7 +501,6 @@ class FinalEvokedCurrent:
         self.raw_data()
         self.final_data()
         
-        
     def raw_data(self):
         if self.o_acq_dict is not None:
             o_raw_df = pd.DataFrame(
@@ -513,8 +512,8 @@ class FinalEvokedCurrent:
                  self.lfp_acq_dict.keys()])
         if self.lfp_acq_dict is not None and self.o_acq_dict is not None:
             self.raw_df = pd.merge(lfp_raw_df, o_raw_df,
-                                   on=['Acq number', 'Epoch'])
-        elif self.o_acq_dict is None:
+                on=['Acq number', 'Epoch'], suffixes=['', ''])
+        elif self.o_acq_dict is None and self.lfp_acq_dict is not None:
             self.raw_df = lfp_raw_df
         else:
             self.raw_df = o_raw_df
@@ -524,17 +523,14 @@ class FinalEvokedCurrent:
     def final_data(self):
         if self.lfp_acq_dict is not None and self.o_acq_dict is not None:
             self.final_df = self.raw_df.groupby(['Epoch',
-                                                 'Peak direction']).mean()
-            self.final_df.drop(['Acq number'], inplace=True, axis=1)
+                'Peak direction']).mean()
             self.final_df.reset_index(inplace=True)
-        elif self.o_acq_dict is not None:
+        elif self.o_acq_dict is not None and self.lfp_acq_dict is None:
             self.final_df = self.raw_df.groupby(['Epoch',
                                                  'Peak direction']).mean()
-            self.final_df.drop(['Acq number'], inplace=True, axis=1)
             self.final_df.reset_index(inplace=True)
         else:
             self.final_df = self.raw_df.groupby(['Epoch']).mean()
-            self.final_df.drop(['Acq number'], inplace=True, axis=1)
             self.final_df.reset_index(inplace=True)
             
             
@@ -550,4 +546,9 @@ class FinalEvokedCurrent:
                                  sheet_name='Raw data')
             self.final_df.to_excel(writer, index=False,
                                    sheet_name='Final data')
+ 
             
+if __name__ == '__main__':
+    FinalEvokedCurrent()
+    FinalMiniAnalysis()
+    FinalCurrentClampAnalysis()

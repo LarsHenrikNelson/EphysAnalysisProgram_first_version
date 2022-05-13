@@ -501,8 +501,8 @@ class CurrentClamp(Acquisition):
                  baseline_end, filter_type='None', order=None, high_pass=None,
                  high_width=None, low_pass=None, low_width=None, window=None, 
                  polyorder=None, pulse_start=300, pulse_end=1000, 
-                 ramp_start=300, ramp_end=4000, threshold=-15, **kwargs):
-        super().__init__(**kwargs)
+                 ramp_start=300, ramp_end=4000, threshold=-15, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.pulse_start = int(pulse_start*self.s_r_c)
         self.pulse_end = int(pulse_end*self.s_r_c)
         self.ramp_start = int(ramp_start*self.s_r_c)
