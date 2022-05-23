@@ -35,10 +35,9 @@ class currentClampWidget(QWidget):
     '''
    
     
-    def __init__(self, parent=None):
-        super(currentClampWidget, self).__init__(parent)
-        
-        self.parent = parent
+    def __init__(self):
+        super().__init__()
+    
         
         self.main_layout = QHBoxLayout()
         self.input_layout = QFormLayout()

@@ -22,11 +22,9 @@ class filterWidget(QWidget):
     '''
     
     
-    def __init__(self, parent=None):
+    def __init__(self):
         
-        super(filterWidget, self).__init__(parent)
-        
-        self.parent = parent
+        super().__init__()
     
         # self.path_layout = QHBoxLayout()
         self.plot_layout = QHBoxLayout()
@@ -154,6 +152,7 @@ class filterWidget(QWidget):
         self.plot_list = {}
         self.pencil_list = []
         self.counter = 0
+        self.filter_list = []
 
 
     def del_selection(self):
@@ -167,7 +166,7 @@ class filterWidget(QWidget):
     
 
     def plot_filt_button(self):
-        acq_components = load_scanimage_file(self.acq_model.fname_list[0])
+        acq_components = self.acq_model.acq_list[0]
         h = Acquisition(acq_components=acq_components,
                         sample_rate=self.sample_rate_edit.toInt(), 
                         baseline_start=self.b_start_edit.toInt(), 
@@ -181,6 +180,18 @@ class filterWidget(QWidget):
                         window=self.window_edit.currentText(), 
                         polyorder=self.polyorder_edit.toInt())  
         h.filter_array()
+        filter_dict = {'sample_rate': self.sample_rate_edit.toInt(), 
+                       'baseline_start': self.b_start_edit.toInt(), 
+                       'baseline_end': self.b_end_edit.toInt(), 
+                       'filter_type': self.filter_selection.currentText(), 
+                       'order': self.order_edit.toInt(), 
+                       'high_pass': self.high_pass_edit.toInt(), 
+                       'high_width': self.high_width_edit.toInt(), 
+                       'low_pass': self.low_pass_edit.toInt(), 
+                       'low_width': self.low_width_edit.toInt(), 
+                       'window': self.window_edit.currentText(), 
+                       'polyorder': self.polyorder_edit.toInt()}
+        self.filter_list += [filter_dict]
         if len(self.plot_list.keys()) == 0:
             pencil=pg.mkPen(color='w', alpha=int(0.75*255))
         else:

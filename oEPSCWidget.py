@@ -32,11 +32,9 @@ from utility_classes import (LineEdit, SaveWorker, YamlWorker, ListModel,
 
 
 class oEPSCWidget(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self):
         
-        super(oEPSCWidget, self).__init__(parent)
-        
-        self.parent = parent
+        super().__init__()
         
         self.parent_layout = QVBoxLayout()
         self.main_layout = QHBoxLayout()
@@ -592,7 +590,7 @@ class oEPSCWidget(QWidget):
                 self.lfp_acq_plot = pg.PlotDataItem(
                     x=self.lfp_object.x_array, 
                     y=self.lfp_object.filtered_array, 
-                    name=str('oepsc_' + self.acquisition_number.text()),
+                    name=str('lfp_' + self.acquisition_number.text()),
                     symbol='o', symbolSize=10, symbolBrush=(0,0,0,0),
                     symbolPen=(0,0,0,0))
                 self.lfp_points = pg.PlotDataItem(
@@ -602,7 +600,7 @@ class oEPSCWidget(QWidget):
                 self.lfp_reg = pg.PlotDataItem(
                     x=(self.lfp_object.slope_x
                     /self.lfp_object.s_r_c),
-                    y=self.lfp_object.reg_line, pen='g')
+                    y=self.lfp_object.reg_line, pen=pg.mkPen(color='g', width=4))
                 self.lfp_acq_plot.sigPointsClicked.connect(self.lfp_plot_clicked)
                 self.lfp_plot.addItem(self.lfp_acq_plot)
                 self.lfp_plot.addItem(self.lfp_points)
@@ -786,14 +784,15 @@ class oEPSCWidget(QWidget):
         if self.pref_dict['Final Analysis']:
             self.final_data.save_data(save_filename)
         if len(self.oepsc_model.fname_list) != 0:
-            self.worker = SaveWorker(save_filename, self.oepsc_acq_dict)
-            self.worker.signals.progress.connect(self.update_save_progress)
-            self.threadpool.start(self.worker)
+            self.pbar.setFormat('Saving oEPSC files...')
+            worker1 = SaveWorker(save_filename, self.oepsc_acq_dict)
+            worker1.signals.progress.connect(self.update_save_progress)
+            self.threadpool.start(worker1)
         if len(self.lfp_model.fname_list != 0):
-            self.worker = SaveWorker(save_filename, self.lfp_acq_dict)
-            self.worker.signals.progress.connect(self.update_save_progress)
-            self.threadpool.start(self.worker)
-        self.worker.signals.finished.connect(self.progress_finished)   
+            self.pbar.setFormat('Saving LFP files...')
+            worker2 = SaveWorker(save_filename, self.lfp_acq_dict)
+            worker2.signals.progress.connect(self.update_save_progress)
+            self.threadpool.start(worker2)   
         self.pbar.setFormat('Data saved')
     
     

@@ -207,7 +207,15 @@ class FinalMiniAnalysis:
         self.extract_raw_data()
         self.extract_final_data()
         
-        
+
+    def stem_components(self, column):
+        array_x = self.final_obj.raw_df['Real time'].to_numpy()
+        array_y = self.final_obj.raw_df[column].to_numpy()
+        stems_y = np.stack([array_y,array_y*0],axis=-1).flatten()
+        stems_x = np.stack([array_x,array_x],axis=-1).flatten()
+        return array_x, array_y, stems_x, stems_y
+
+
     def save_data(self, save_filename):
         '''
         This function saves the resulting pandas data frames to an excel file.
@@ -542,13 +550,4 @@ class FinalEvokedCurrent:
         '''
         with pd.ExcelWriter(f"{save_filename}.xlsx",
                     mode='w', engine='openpyxl') as writer:
-            self.raw_df.to_excel(writer, index=False,
-                                 sheet_name='Raw data')
-            self.final_df.to_excel(writer, index=False,
-                                   sheet_name='Final data')
- 
-            
-if __name__ == '__main__':
-    FinalEvokedCurrent()
-    FinalMiniAnalysis()
-    FinalCurrentClampAnalysis()
+            s

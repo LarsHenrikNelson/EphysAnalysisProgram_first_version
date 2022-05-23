@@ -9,6 +9,8 @@ Last updated on Wed Feb 16 12:33:00 2021
 """
 import os
 from os.path import expanduser
+from pathlib import Path
+from re import A
 import sys
 
 from PyQt5.QtWidgets import (QPushButton, QHBoxLayout, QComboBox,
@@ -18,10 +20,11 @@ from PyQt5.QtWidgets import (QPushButton, QHBoxLayout, QComboBox,
 import qdarkstyle
 
 from currentClampWidget import currentClampWidget
+from filterWidget import filterWidget
 from miniAnalysisWidget import MiniAnalysisWidget
 from oEPSCWidget import oEPSCWidget
-from filterWidget import filterWidget
-from utility_classes import LineEdit
+from PreferencesWidget import PreferencesWidget
+from utility_classes import LineEdit, YamlWorker
 
 
 class MainWindow(QMainWindow):
@@ -61,7 +64,8 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(self.savePref)
         
         self.setApplicationPreferences = QAction('Set preferences', self)
-        self.setApplicationPreferences.triggered.connect(self.set_preferences)
+        self.setApplicationPreferences.triggered.connect(self.set_appearance)
+        self.preferences_menu.addAction(self.setApplicationPreferences)
         
         self.tool_bar = QToolBar()
         self.addToolBar(self.tool_bar)
@@ -79,9 +83,10 @@ class MainWindow(QMainWindow):
         self.button = QPushButton('Set Path')
         self.button.clicked.connect(self.set_path)
         self.tool_bar.addWidget(self.button)
+
+        self.preferences_widget = PreferencesWidget()
         
         self.directory = str(os.chdir(expanduser("~")))
-
     
     def set_widget(self, text):
         if text == 'Mini Analysis':
@@ -143,8 +148,25 @@ class MainWindow(QMainWindow):
             self.central_widget.save_preferences(save_filename)
                     
 
-    def set_preferences(self):
-        pass
+    def set_appearance(self):
+        #Creates a separate window to set the appearance of the application
+        self.preferences_widget.show()
+
+    
+    def startup_function(self):
+        p = Path.home()
+        h = 'EphysAnalysisProgram'
+        file_name = 'Preferences.yaml'    
+
+    
+        if Path(p/h).exists():
+            if Path(p/h/file_name).exists():
+                pref_dict = YamlWorker.load_yaml(p/h/file_name)
+            else:
+                pass
+        else:
+            os.mkdir(p/h)
+
 
 def run_program():
     app = QApplication([])

@@ -11,6 +11,7 @@ Last updated on Wed Feb 16 12:33:00 2021
 from math import log10, floor
 from glob import glob
 import json
+from matplotlib.pyplot import prism
 
 import numpy as np
 import pandas as pd
@@ -18,7 +19,7 @@ from PyQt5.QtWidgets import (QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout,
                              QWidget, QLabel, QFormLayout, QComboBox, QSpinBox,
                              QCheckBox, QProgressBar, QMessageBox, QTabWidget,
                              QScrollArea, QSizePolicy, QListWidget)
-from PyQt5.QtGui import QIntValidator, QKeySequence, QShortcut
+from PyQt5.QtGui import QIntValidator, QKeySequence, QShortcut, QFont
 from PyQt5.QtCore import QThreadPool, Qt
 import pyqtgraph as pg
 
@@ -34,12 +35,11 @@ from utility_classes import (LineEdit, MiniSaveWorker, MplWidget,
 
 class MiniAnalysisWidget(QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self):
         
-        super(MiniAnalysisWidget, self).__init__(parent)
+        super().__init__()
         
-        # self.parent = parent
-        
+
         #Create tabs for part of the analysis program
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -110,6 +110,7 @@ class MiniAnalysisWidget(QWidget):
         self.raw_data_table = pg.TableWidget(sortable=False)
         self.final_table = pg.TableWidget(sortable=False)
         self.ave_mini_plot = pg.PlotWidget(labels={'left': 'Amplitude (pA)', 'bottom': 'Time (ms)'})
+        self.ave_mini_plot.setObjectName('Ave mini plot')
         self.data_layout.addWidget(self.raw_data_table, 1)
         self.final_data_layout = QVBoxLayout()
         self.final_data_layout.addWidget(self.final_table,1)
@@ -164,10 +165,12 @@ class MiniAnalysisWidget(QWidget):
         #Filling the plot layout.
         # pg.setConfigOptions(antialias=True)
         self.p1 = pg.PlotWidget(labels={'left': 'Amplitude (pA)', 'bottom': 'Time (ms)'})
+        self.p1.setObjectName('p1')
         self.p1.setMinimumWidth(500)
         self.acq_layout.addWidget(self.p1, 1)
         
         self.p2 = pg.PlotWidget(labels={'left': 'Amplitude (pA)', 'bottom': 'Time (ms)'})
+        self.p2.setObjectName('p2')
         self.mini_view_layout.addWidget(self.p2, 1)
         
         self.region = pg.LinearRegionItem()
@@ -223,8 +226,9 @@ class MiniAnalysisWidget(QWidget):
         self.mini_layout.addRow(self.set_peak)
         self.set_peak.clicked.connect(self.set_point_as_peak)
         
-        self.mini_view_widget = pg.PlotWidget(labels={'left': 'Amplitude (pA)', 'bottom': 'Time (ms)'})
-        self.mini_view_layout.addWidget(self.mini_view_widget, 1)
+        self.mini_view_plot = pg.PlotWidget(labels={'left': 'Amplitude (pA)', 'bottom': 'Time (ms)'})
+        self.mini_view_plot.setObjectName('Mini view plot')
+        self.mini_view_layout.addWidget(self.mini_view_plot, 1)
         
         #Tab1 input
         self.load_acq_label = QLabel('Acquisition(s)')
@@ -482,6 +486,7 @@ class MiniAnalysisWidget(QWidget):
         self.template_button.setObjectName('template_button')
         
         self.template_plot = pg.PlotWidget(labels={'left': 'Amplitude (pA)', 'bottom': 'Time (ms)'})
+        self.template_plot.setObjectName('Template plot')
         self.extra_layout.addWidget(self.template_plot, 0)
         
 
@@ -685,7 +690,7 @@ class MiniAnalysisWidget(QWidget):
         #the plot.
         self.p1.clear()
         self.p2.clear()
-        self.mini_view_widget.clear()
+        self.mini_view_plot.clear()
 
         #Reset the clicked points since we do not want to accidentally
         #adjust plot items on the new acquisition
@@ -752,18 +757,20 @@ class MiniAnalysisWidget(QWidget):
             #Enabled the acquisition number since it was disabled earlier.
             self.acquisition_number.setEnabled(True)
 
+            #Create the mini list and the true index of each mini.
+            #Since the plot items on a pyqtgraph plot cannot be sorted
+            #I had to create a way to correctly reference the position
+            #of minis when adding new minis because I ended up just
+            #adding the new minis to postsynaptic events list.
+            self.mini_spinbox_list = list(
+                range(len(self.acq_object.postsynaptic_events)))
+            self.sort_index = list(
+                np.argsort(self.acq_object.final_events))
+            # print(len(self.sort_index))
+
             #Plot the postsynaptic events.
             if len(self.acq_object.postsynaptic_events) > 0:
 
-                #Create the mini list and the true index of each mini.
-                #Since the plot items on a pyqtgraph plot cannot be sorted
-                #I had to create a way to correctly reference the position
-                #of minis when adding new minis because I ended up just
-                #adding the new minis to postsynaptic events list.
-                self.mini_spinbox_list = list(
-                    range(len(self.acq_object.postsynaptic_events)))
-                self.sort_index = list(
-                    np.argsort(self.acq_object.final_events))
                 #Plot each mini. Since the postsynaptic events are stored in
                 #a list you can iterate through the list even if there is just
                 #one event because lists are iterable in python.
@@ -790,12 +797,12 @@ class MiniAnalysisWidget(QWidget):
                 #is easier to work with mini referenceing
                 self.mini_number.setMinimum(0)
                 self.mini_number.setMaximum(self.mini_spinbox_list[-1])
-                self.mini_spinbox(0)
+                self.mini_number.setValue(0)
             else:
                 self.acquisition_number.setEnabled(True)
         else:
             text = pg.TextItem(text='No acquisition', anchor=(.5,.5))
-            self.p1.addItem(text)
+            text.setFont(QFont("Ariel", 20))
             self.p2.addItem(text)
             self.acquisition_number.setEnabled(True)
     
@@ -811,7 +818,7 @@ class MiniAnalysisWidget(QWidget):
         self.acq_model.fname_list = []
         self.acq_model.layoutChanged.emit()
         self.calc_param_clicked = False
-        self.mini_view_widget.clear()
+        self.mini_view_plot.clear()
         self.acq_dict = {}
         self.acq_object = None
         self.analysis_list = []
@@ -901,7 +908,7 @@ class MiniAnalysisWidget(QWidget):
             self.last_mini_clicked_2.setPen(color='g')
         
         #Clear the mini plot
-        self.mini_view_widget.clear()
+        self.mini_view_plot.clear()
 
         #Return the correct index of the mini. This is needed because of
         #how new minis are created
@@ -919,9 +926,11 @@ class MiniAnalysisWidget(QWidget):
             self.region.setRegion([int(mini.x_array[0]/mini.s_r_c-100),
                 int(mini.x_array[0]/mini.s_r_c+300)])
         
-        #Create the mini plot item.
+        #Create the mini plot item. The x_array is a method call
+        #because it needs to be corrected for sample rate and
+        #displayed as milliseconds.
         mini_item = pg.PlotDataItem(
-            x=mini.x_array/mini.s_r_c,
+            x=mini.mini_x_array(),
             y=mini.event_array, pen=pg.mkPen(linewidth=3), symbol='o',
             symbolPen=None, symbolBrush='w', symbolSize=6)
         
@@ -929,20 +938,21 @@ class MiniAnalysisWidget(QWidget):
         mini_item.sigPointsClicked.connect(self.mini_plot_clicked)
         
         #Plot item for the baseline, peak and estimated tau.
-        mini_plot_items = pg.PlotDataItem(x=mini.mini_comp_x,
-            y=mini.mini_comp_y, pen=None, symbol='o', symbolBrush='g',
+        mini_plot_items = pg.PlotDataItem(x=mini.mini_x_comp(),
+            y=mini.mini_y_comp(), pen=None, symbol='o',
+            symbolBrush=[pg.mkBrush('g'), pg.mkBrush('m'), pg.mkBrush('b')],
             symbolSize=12)
 
         #Add the plot items to the mini view widget.
-        self.mini_view_widget.addItem(mini_item)
-        self.mini_view_widget.addItem(mini_plot_items)
+        self.mini_view_plot.addItem(mini_item)
+        self.mini_view_plot.addItem(mini_plot_items)
 
         #Plot the fit taus if curve fit was selected.
         if mini.fit_tau is not np.nan and self.curve_fit_decay.isChecked():
             mini_decay_items = pg.PlotDataItem(x=mini.fit_decay_x,
                 y=mini.fit_decay_y, pen=pg.mkPen((255,0,255, 175),
                                                     width=3))
-            self.mini_view_widget.addItem(mini_decay_items)
+            self.mini_view_plot.addItem(mini_decay_items)
         
         #Sets the color of the minis on p1 and p2 so that the mini
         #selected with the spinbox or the mini that was clicked is shown.
@@ -1104,7 +1114,7 @@ class MiniAnalysisWidget(QWidget):
         self.last_mini_deleted_number = self.mini_number.text()
         
         #Clear the mini view plot.
-        self.mini_view_widget.clear()
+        self.mini_view_plot.clear()
 
         #Find the correct mini.
         mini_index = self.sort_index[int(self.mini_number.text())]
@@ -1149,19 +1159,29 @@ class MiniAnalysisWidget(QWidget):
         on the main acquisition and clicking create new mini's button
         will run this function.
         '''
-        #Make sure that the last acq point that was clicked exists
+        #Make sure that the last acq point that was clicked exists.
         if self.last_acq_point_clicked:
             x = (self.last_acq_point_clicked[0].pos()[0]
                  * self.acq_object.s_r_c)
             
-            #The mini needs a baseline of at least 2 milliseconds long
+            #The mini needs a baseline of at least 2 milliseconds long.
             if x > int(2 * self.acq_dict[str(self.acquisition_number.text())].s_r_c):
+                
+                #Create the new mini.
                 self.acq_dict[str(
                     self.acquisition_number.text())].create_new_mini(x)
+                
+                #Reset the mini_spinbox_list.
                 self.mini_spinbox_list = list(
                         range(len(self.acq_object.postsynaptic_events)))
+                
+                #Create the new sort index.
                 self.sort_index = list(np.argsort(self.acq_object.final_events))
+                
+                #Return the correct position of the mini
                 id_value = self.mini_spinbox_list[-1]
+                
+                #Add the mini item to the plot and make it clickable for p1.
                 mini_plot = pg.PlotCurveItem(
                     x=self.acq_object.postsynaptic_events[id_value].mini_plot_x, 
                     y=self.acq_object.postsynaptic_events[id_value].mini_plot_y,
@@ -1172,30 +1192,50 @@ class MiniAnalysisWidget(QWidget):
                     x=self.acq_object.postsynaptic_events[id_value].mini_plot_x,
                     y=self.acq_object.postsynaptic_events[id_value].mini_plot_y,
                     pen='g', name = id_value)
+                
+                #Set the spinbox maximum and current value.
                 self.mini_number.setMaximum(self.mini_spinbox_list[-1])
                 self.mini_number.setValue(self.sort_index.index(id_value))
+
+                #Reset the clicked point so a new point is not accidentally created.
                 self.last_acq_point_clicked[0].resetPen()
                 self.last_acq_point_clicked = []
             else:
+                #Raise error if the point is too close to the beginning.
                 self.point_to_close_to_beginning()
         else:
             pass
         
     
     def delete_acq(self):
+        '''
+        Deletes the current acquisition when the delete acquisition
+        button is clicked.
+        '''
+        self.recent_reject_acq = {}
+
+        #Add acquisition to be deleted to the deleted acquisitions
+        # and the recent deleted acquistion dictionary.
         self.deleted_acqs[str(
             self.acquisition_number.text())] = self.acq_dict[str(
                 self.acquisition_number.text())]
         self.recent_reject_acq[str(
             self.acquisition_number.text())] = self.acq_dict[str(
                 self.acquisition_number.text())]
+        
+        #Remove deleted acquisition from the acquisition dictionary.
         del self.acq_dict[str(self.acquisition_number.text())]
+        self.acqs_deleted += 1
+
+        #Clear plots
         self.p1.clear()
         self.p2.clear()
-        self.mini_view_widget.clear()
+        self.mini_view_plot.clear()
+
+        #Reset the analysis list and change the acquisitio to the next
+        #acquisition.
         self.analysis_list = [int(i) for i in self.acq_dict.keys()]
-        self.acq_spinbox(int(self.acquisition_number.text())+1)
-        self.acqs_deleted += 1
+        self.acquisition_number.setValue(int(self.acquisition_number.text())+1)
         
     
     def reset_rejected_acqs(self):
@@ -1210,7 +1250,8 @@ class MiniAnalysisWidget(QWidget):
         self.acq_dict.update(self.recent_reject_acq)
         self.analysis_list = [int(i) for i in self.acq_dict.keys()]
         self.acqs_deleted -= 1
-        
+        self.acquisition_number.setValue(int(list(self.recent_reject_acq.keys())[0]))
+
     
     def final_analysis(self):
         if self.final_obj is not None:
@@ -1306,7 +1347,7 @@ class MiniAnalysisWidget(QWidget):
             self.analysis_list = [int(i) for i in self.acq_dict.keys()]
             self.acquisition_number.setMaximum(max(self.analysis_list))
             self.acquisition_number.setMinimum(min(self.analysis_list))
-            self.acq_spinbox(int(load_dict['Acq_number']))
+            self.acquisition_number.setValue(int(load_dict['Acq_number']))
             if load_dict['Final Analysis']:
                 excel_file = glob('*.xlsx')[0]
                 save_values = pd.read_excel(excel_file, sheet_name=None)
@@ -1337,13 +1378,13 @@ class MiniAnalysisWidget(QWidget):
         YamlWorker.save_yaml(self.pref_dict, save_filename)
         if self.pref_dict['Final Analysis']:
             self.final_obj.save_data(save_filename)
+        if self.deleted_acqs:
+            self.worker_2 = MiniSaveWorker(save_filename, self.deleted_acqs)
+            self.threadpool.start(self.worker_2)
         self.worker = MiniSaveWorker(save_filename, self.acq_dict)
         self.worker.signals.progress.connect(self.update_save_progress)
+        self.worker.signals.finished.connect(self.progress_finished)
         self.threadpool.start(self.worker)
-        self.worker_2 = MiniSaveWorker(save_filename, self.deleted_acqs)
-        self.worker_2.signals.progress.connect(self.update_save_progress)
-        self.worker_2.signals.finished.connect(self.progress_finished)
-        self.threadpool.start(self.worker_2)
         self.pbar.setFormat('Finished saving')
         self.reset_button.setEnabled(True)
     
@@ -1428,6 +1469,24 @@ class MiniAnalysisWidget(QWidget):
     
     def progress_finished(self, finished):
         self.pbar.setFormat(finished)
+
+
+    def set_appearance_preferences(self, pref_dict):
+        self.p1.setBackground(pref_dict[0])
+        self.p1.getAxis('left').setPen(pref_dict[1])
+        self.p1.getAxis('left').setTextPen(pref_dict[1])
+        self.p1.getAxis('bottom').setPen(pref_dict[1])
+        self.p1.getAxis('bottom').setTextPen(pref_dict[1])
+        self.p2.setBackground(pref_dict[2])
+        self.p2.getAxis('left').setPen(pref_dict[3])
+        self.p2.getAxis('left').setTextPen(pref_dict[3])
+        self.p2.getAxis('bottom').setPen(pref_dict[3])
+        self.p2.getAxis('bottom').setTextPen(pref_dict[3])
+        self.mini_view_plot.setBackground(pref_dict[4])
+        self.mini_view_plot.getAxis('left').setPen(pref_dict[5])
+        self.mini_view_plot.getAxis('left').setTextPen(pref_dict[5])
+        self.mini_view_plot.getAxis('bottom').setPen(pref_dict[5])
+        self.mini_view_plot.getAxis('bottom').setTextPen(pref_dict[5])
 
 
 if __name__ == '__main__':

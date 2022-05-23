@@ -905,7 +905,7 @@ class MiniAnalysis(Acquisition):
                  mini_spacing=7.5, min_rise_time=1, min_decay_time= 2,
                  invert=False, decon_type='weiner', curve_fit_decay=False,
                  curve_fit_type='db_exp', *args, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
         self.rc_check = rc_check
         self.rc_check_start = int(rc_check_start
                                        * self.s_r_c)
@@ -1291,13 +1291,13 @@ class PostSynapticEvent():
         baselined_array = self.event_array - np.mean(
             self.event_array[:int(1*self.s_r_c)])
         peak = self.event_peak_x - self.array_start
-        h = np.argwhere(baselined_array[:peak]
+        search_start = np.argwhere(baselined_array[:peak]
                         > 0.5 * self.event_peak_y).flatten()
-        if h.size > 0:
-            slope = ((self.event_array[h[-1]] - self.event_peak_y)
-                     /(peak - h[-1]))
+        if search_start.size > 0:
+            slope = ((self.event_array[search_start[-1]] - self.event_peak_y)
+                     /(peak - search_start[-1]))
             new_slope = slope + 1
-            i = h[-1]
+            i = search_start[-1]
             while new_slope > slope:
                 slope = (self.event_array[i] - self.event_peak_y)/(peak - i)
                 i -= 1
@@ -1432,13 +1432,24 @@ class PostSynapticEvent():
             self.peak_align_value = self.event_peak_x - self.array_start
             if self.curve_fit_decay:
                 self.fit_decay(fit_type=self.curve_fit_type)
-            self.mini_comp_x = [self.event_start_x/self.s_r_c,
-                                self.event_peak_x/self.s_r_c,
-                                self.est_tau_x/self.s_r_c]
-            self.mini_comp_y = [self.event_start_y, self.event_peak_y,
-                                self.est_tau_y]
     
     
+    def mini_x_comp(self):
+        x = [self.event_start_x/self.s_r_c,
+                    self.event_peak_x/self.s_r_c,
+                    self.est_tau_x/self.s_r_c]
+        return x
+
+
+    def mini_y_comp(self):
+        y = [self.event_start_y, self.event_peak_y,
+                    self.est_tau_y]
+        return y
+
+    def mini_x_array(self):
+        return self.x_array/self.s_r_c
+
+
     def change_amplitude(self, x, y):
         self.event_peak_x = int(x)
         self.event_peak_y = y
@@ -1454,14 +1465,8 @@ class PostSynapticEvent():
                             self.event_peak_x
                             / self.s_r_c]
         self.mini_plot_y = [self.event_start_y, self.event_peak_y]
-        self.mini_comp_x = [self.event_start_x
-                                / self.s_r_c,
-                            self.event_peak_x / self.s_r_c,
-                            self.est_tau_x / self.s_r_c]
-        self.mini_comp_y = [self.event_start_y, self.event_peak_y,
-                            self.est_tau_y]
-        
-    
+       
+
     def change_baseline(self, x, y):
         self.event_start_x = int(x)
         self.event_start_y = y
@@ -1479,17 +1484,11 @@ class PostSynapticEvent():
                             self.event_peak_x
                             / self.s_r_c]
         self.mini_plot_y = [self.event_start_y, self.event_peak_y]
-        self.mini_comp_x = [self.event_start_x
-                                / self.s_r_c,
-                            self.event_peak_x / self.s_r_c,
-                            self.est_tau_x / self.s_r_c]
-        self.mini_comp_y = [self.event_start_y, self.event_peak_y,
-                            self.est_tau_y]
         
 
 class LoadLFP(LFP):
-    def __init__(self, *initial_data, **kwargs):
-        for dictionary in initial_data:
+    def __init__(self, *args, **kwargs):
+        for dictionary in args:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
         for key in kwargs:
@@ -1497,8 +1496,8 @@ class LoadLFP(LFP):
 
 
 class LoadoEPSC(oEPSC):
-    def __init__(self, *initial_data, **kwargs):
-        for dictionary in initial_data:
+    def __init__(self, *args, **kwargs):
+        for dictionary in args:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
         for key in kwargs:
@@ -1510,9 +1509,9 @@ class LoadCurrentClamp(CurrentClamp):
     This class loads the saved CurrentClamp JSON file.
     '''
     
-    def __init__(self, *initial_data, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.sample_rate_correction = None
-        for dictionary in initial_data:
+        for dictionary in args:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
         for key in kwargs:
@@ -1528,10 +1527,10 @@ class LoadMiniAnalysis(MiniAnalysis):
     This class loads the saved JSON file for an entire miniAnalysis session.
     '''
     
-    def __init__(self, *initial_data, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.sample_rate_correction = None
         
-        for dictionary in initial_data:
+        for dictionary in args:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
         
@@ -1562,10 +1561,10 @@ class LoadMini(PostSynapticEvent):
     LoadMiniAnalysis JSON file.
     '''
     
-    def __init__(self, *initial_data, final_array, **kwargs):
+    def __init__(self, *args, final_array, **kwargs):
         self.sample_rate_correction = None
         
-        for dictionary in initial_data:
+        for dictionary in args:
             for key in dictionary:
                 setattr(self, key, dictionary[key])
         
