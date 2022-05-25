@@ -1092,7 +1092,7 @@ class MiniAnalysis(Acquisition):
                                     and event.rise_time > self.min_rise_time
                                     and event.final_tau_x > self.min_decay_time):
                                     self.postsynaptic_events += [event]
-                                    self.final_events += [event.event_peak_x]
+                                    self.final_events += [peak]
                                     event_time += [event.event_peak_x]
                                     event_number +=1
                                 else:
@@ -1100,7 +1100,7 @@ class MiniAnalysis(Acquisition):
                         else:
                             if event.amplitude > self.amp_threshold:
                                     self.postsynaptic_events += [event]
-                                    self.final_events += [event.event_peak_x]
+                                    self.final_events += [peak]
                                     event_time += [event.event_peak_x]
                                     event_number +=1
                             else:
@@ -1121,7 +1121,7 @@ class MiniAnalysis(Acquisition):
                     and event.rise_time > self.min_rise_time
                     and event.final_tau_x > self.min_decay_time):
                         self.postsynaptic_events += [event]
-                        self.final_events += [event.event_peak_x]
+                        self.final_events += [peak]
                         event_time += [event.event_peak_x]
                         event_number +=1
                 else:
@@ -1132,10 +1132,10 @@ class MiniAnalysis(Acquisition):
         event = PostSynapticEvent(self.acq_number, x, self.final_array,
                                   self.sample_rate, self.curve_fit_decay,
                                   self.curve_fit_type)
-        self.final_events += [event.event_peak_x]
+        self.final_events += [x]
         self.postsynaptic_events += [event]
-    
-    
+
+
     def final_acq_data(self):
         '''
         Creates the final data using list comprehension by looping over each

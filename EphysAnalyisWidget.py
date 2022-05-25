@@ -16,7 +16,7 @@ import sys
 from PyQt5.QtWidgets import (QPushButton, QHBoxLayout, QComboBox,
                              QFileDialog, QMainWindow, QWidget, QLabel, 
                              QFormLayout, QApplication, QSpinBox,
-                             QToolBar, QAction)
+                             QToolBar, QAction, QStackedWidget)
 import qdarkstyle
 
 from currentClampWidget import currentClampWidget
@@ -87,17 +87,28 @@ class MainWindow(QMainWindow):
         self.preferences_widget = PreferencesWidget()
         
         self.directory = str(os.chdir(expanduser("~")))
+
+        self.central_widget = QStackedWidget()
+        self.setCentralWidget(self.central_widget)
+
+        self.mini_widget = MiniAnalysisWidget()
+        self.central_widget.addWidget(self.mini_widget)
+        self.oepsc_widget = oEPSCWidget()
+        self.central_widget.addWidget(self.oepsc_widget)
+        self.current_clamp_widget = currentClampWidget()
+        self.central_widget.addWidget(self.current_clamp_widget)
+        self.filter_widget = filterWidget()
+        self.central_widget.addWidget(self.filter_widget)
     
     def set_widget(self, text):
         if text == 'Mini Analysis':
-            self.central_widget = MiniAnalysisWidget()
+            self.central_widget.setCurrentWidget(self.mini_widget)
         elif text == 'oEPSC':
-            self.central_widget = oEPSCWidget()
+            self.central_widget.setCurrentWidget(self.oepsc_widget)
         elif text == 'Current Clamp':
-            self.central_widget = currentClampWidget()
+            self.central_widget.setCurrentWidget(self.current_clamp_widget)
         elif text == 'Filtering setup':
-            self.central_widget = filterWidget()
-        self.setCentralWidget(self.central_widget)
+            self.central_widget.setCurrentWidget(self.filter_widget)
 
 
     def set_path(self, click):

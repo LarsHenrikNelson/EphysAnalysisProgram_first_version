@@ -215,7 +215,7 @@ class MplWidget(QWidget):
         self.canvas.draw()
         self.canvas.axes.set_title(f'{y} over time', color=self.point_color)
         stem, marker, base = self.canvas.axes.stem(df[x] , df[y])
-        stem.set(color=self.point_color , alphas=0.5)
+        stem.set(color=self.point_color , alpha=0.5)
         marker.set(color=self.point_color)
         self.canvas.draw()
 

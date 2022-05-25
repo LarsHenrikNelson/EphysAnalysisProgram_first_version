@@ -798,6 +798,7 @@ class MiniAnalysisWidget(QWidget):
                 self.mini_number.setMinimum(0)
                 self.mini_number.setMaximum(self.mini_spinbox_list[-1])
                 self.mini_number.setValue(0)
+                self.mini_number.valueChanged()
             else:
                 self.acquisition_number.setEnabled(True)
         else:
@@ -1023,6 +1024,7 @@ class MiniAnalysisWidget(QWidget):
             #for the postsynaptic event.
             self.acq_object.postsynaptic_events[
                     mini_index].change_amplitude(x, y)
+
             
             #Redraw the minis on p1 and p2 plots. Note that the last
             #mini clicked provides a "pointed" to the correct plot
