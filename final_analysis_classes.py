@@ -550,4 +550,7 @@ class FinalEvokedCurrent:
         '''
         with pd.ExcelWriter(f"{save_filename}.xlsx",
                     mode='w', engine='openpyxl') as writer:
-            s
+            self.raw_df.to_excel(writer, index=False,
+                                 sheet_name='Raw data')
+            self.final_df.to_excel(writer, index=False,
+                                   sheet_name='Final data')
