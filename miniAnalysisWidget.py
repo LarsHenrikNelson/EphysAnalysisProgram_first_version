@@ -727,7 +727,7 @@ class MiniAnalysisWidget(QWidget):
         # where the the box will skip every other acquisition.
         self.acquisition_number.setDisabled(True)
 
-        # I choose to just show
+        #Make sure the acquisition number is in the analysis list
         if int(self.acquisition_number.value()) in self.analysis_list:
 
             # Creates a reference to the acquisition object so that the
@@ -1265,7 +1265,10 @@ class MiniAnalysisWidget(QWidget):
         # Reset the analysis list and change the acquisitio to the next
         # acquisition.
         self.analysis_list = [int(i) for i in self.acq_dict.keys()]
-        self.acquisition_number.setValue(int(self.acquisition_number.text()) + 1)
+        if int(self.acquisition_number.text()) + 1 <= self.acquisition_number.maximum():
+            self.acquisition_number.setValue(int(self.acquisition_number.text()) + 1)
+        else:
+            self.acquisition_number.setValue(int(self.acquisition_number.text()) - 1)
 
     def reset_rejected_acqs(self):
         self.acq_dict.update(self.deleted_acqs)

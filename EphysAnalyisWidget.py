@@ -134,10 +134,10 @@ class MainWindow(QMainWindow):
             self, "Save data as...", f"{self.directory}/save_filename"
         )
         if save_filename:
-            self.central_widget.save_as(save_filename)
+            self.central_widget.currentWidget().save_as(save_filename)
 
     def open_files(self):
-        self.directory = str(QFileDialog.getExistingDirectory())
+        self.directory = str(QFileDialog.getExistingDirectory)
         if len(self.directory) == 0:
             # This prevents an error from showing up when the path is not
             # selected
@@ -145,24 +145,26 @@ class MainWindow(QMainWindow):
         else:
             self.path_edit.setText("{}".format(self.directory))
             os.chdir(self.directory)
-            self.central_widget.open_files()
+            self.central_widget.currentWidget().open_files()
 
     def load_preferences(self):
-        file_name, _ = QFileDialog.getOpenFileName()
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, self.directory, "Open file", "YAML Files (*.yaml)"
+        )
         if len(file_name) == 0:
             # This prevents an error from showing up when the path is not
             # selected
             pass
         else:
-            self.central_widget.load_preferences(file_name)
+            self.central_widget.currentWidget().load_preferences(file_name)
 
     def save_preferences(self):
         save_filename, _extension = QFileDialog.getSaveFileName(
-            self, "Save data as...", ""
+            self, "Save preference as...", ""
         )
         # print(save_filename)
         if save_filename:
-            self.central_widget.save_preferences(save_filename)
+            self.central_widget.currentWidget().save_preferences(save_filename)
 
     def set_appearance(self):
         # Creates a separate window to set the appearance of the application
@@ -180,6 +182,10 @@ class MainWindow(QMainWindow):
                 pass
         else:
             os.mkdir(p / h)
+
+    def closeEvent(self, event):
+        self.save_as()
+        event.accept()
 
 
 def run_program():

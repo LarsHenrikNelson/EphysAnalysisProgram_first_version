@@ -93,6 +93,7 @@ class MiniAnalysisSettings(QWidget):
         self.layout.setColumnStretch(0, 0)
         self.layout.setColumnStretch(1, 0)
         self.setLayout(self.layout)
+        self.setObjectName("Mini analysis settings")
 
         self.template_label = QLabel("Template plot")
         self.template_label.setStyleSheet("font-weight: bold")
@@ -144,23 +145,23 @@ class MiniAnalysisSettings(QWidget):
         )
         self.layout.addWidget(self.p1_axis_color, 5, 1)
 
-        self.p1_mini_s_label = QLabel("Mini selected", alignment=Qt.AlignRight)
-        self.layout.addWidget(self.p1_mini_s_label, 5, 2)
-        self.p1_mini_s_color = QPushButton()
-        self.p1_mini_s_color.setObjectName("Inspection plot mini_s")
-        self.p1_mini_s_color.clicked.connect(
-            lambda checked: self.setColor(self.p1_mini_s_color, "p1", "mini")
-        )
-        self.layout.addWidget(self.p1_mini_s_color, 5, 3)
-
         self.p1_acq_label = QLabel("Acquisition", alignment=Qt.AlignRight)
-        self.layout.addWidget(self.p1_acq_label, 5, 4)
+        self.layout.addWidget(self.p1_acq_label, 5, 2)
         self.p1_acq_color = QPushButton()
         self.p1_acq_color.setObjectName("Inspection plot acq")
         self.p1_acq_color.clicked.connect(
             lambda checked: self.setColor(self.p1_acq_color, "p1", "acq")
         )
-        self.layout.addWidget(self.p1_acq_color, 5, 5)
+        self.layout.addWidget(self.p1_acq_color, 5, 3)
+
+        self.p1_mini_s_label = QLabel("Mini selected", alignment=Qt.AlignRight)
+        self.layout.addWidget(self.p1_mini_s_label, 5, 4)
+        self.p1_mini_s_color = QPushButton()
+        self.p1_mini_s_color.setObjectName("Inspection plot mini_s")
+        self.p1_mini_s_color.clicked.connect(
+            lambda checked: self.setColor(self.p1_mini_s_color, "p1", "mini")
+        )
+        self.layout.addWidget(self.p1_mini_s_color, 5, 5)
 
         self.p1_bgd_label = QLabel("Background", alignment=Qt.AlignRight)
         self.layout.addWidget(self.p1_bgd_label, 6, 0)
@@ -194,23 +195,23 @@ class MiniAnalysisSettings(QWidget):
         )
         self.layout.addWidget(self.p2_axis_color, 9, 1)
 
-        self.p2_mini_s_label = QLabel("Mini selected", alignment=Qt.AlignRight)
-        self.layout.addWidget(self.p2_mini_s_label, 9, 2)
-        self.p2_mini_s_color = QPushButton()
-        self.p2_mini_s_color.setObjectName("Scroll plot mini_s")
-        self.p2_mini_s_color.clicked.connect(
-            lambda checked: self.setColor(self.p2_mini_s_color, "p2", "mini")
-        )
-        self.layout.addWidget(self.p2_mini_s_color, 9, 3)
-
         self.p2_acq_label = QLabel("Acquisition", alignment=Qt.AlignRight)
-        self.layout.addWidget(self.p2_acq_label, 9, 4)
+        self.layout.addWidget(self.p2_acq_label, 9, 2)
         self.p2_acq_color = QPushButton()
         self.p2_acq_color.setObjectName("Scroll plot acq")
         self.p2_acq_color.clicked.connect(
             lambda checked: self.setColor(self.p2_acq_color, "p2", "acq")
         )
-        self.layout.addWidget(self.p2_acq_color, 9, 5)
+        self.layout.addWidget(self.p2_acq_color, 9, 3)
+
+        self.p2_mini_s_label = QLabel("Mini selected", alignment=Qt.AlignRight)
+        self.layout.addWidget(self.p2_mini_s_label, 9, 4)
+        self.p2_mini_s_color = QPushButton()
+        self.p2_mini_s_color.setObjectName("Scroll plot mini_s")
+        self.p2_mini_s_color.clicked.connect(
+            lambda checked: self.setColor(self.p2_mini_s_color, "p2", "mini")
+        )
+        self.layout.addWidget(self.p2_mini_s_color, 9, 5)
 
         self.p2_bgd_label = QLabel("Background", alignment=Qt.AlignRight)
         self.layout.addWidget(self.p2_bgd_label, 10, 0)
