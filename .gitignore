@@ -1,0 +1,16 @@
+final_test_doct.py
+TestWidget
+setup.py
+__pycache__/acq_class.cpython-39.pyc
+__pycache__/AcqInspectionWidget.cpython-39.pyc
+__pycache__/currentClampWidget.cpython-39.pyc
+__pycache__/filtering_functions.cpython-39.pyc
+__pycache__/filterWidget.cpython-39.pyc
+__pycache__/final_analysis_classes.cpython-39.pyc
+__pycache__/load_classes.cpython-39.pyc
+__pycache__/miniAnalysisWidget.cpython-39.pyc
+__pycache__/oEPSCWidget.cpython-39.pyc
+__pycache__/PreferencesWidget.cpython-39.pyc
+__pycache__/utilities.cpython-39.pyc
+__pycache__/utility_classes.cpython-39.pyc
+test_doc.py
