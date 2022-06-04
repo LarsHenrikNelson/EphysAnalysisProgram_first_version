@@ -132,11 +132,15 @@ class oEPSCWidget(QWidget):
         self.oepsc_plot = pg.PlotWidget(
             labels={"left": "Amplitude (pA)", "bottom": "Time (ms)"}
         )
+        self.oepsc_plot.setObjectName("oEPSC plot")
         self.oepsc_plot.setMinimumWidth(500)
+
         self.lfp_plot = pg.PlotWidget(
             labels={"left": "Amplitude (mV)", "bottom": "Time (ms)"}
         )
+        self.lfp_plot.setObjectName("LFP plot")
         self.lfp_plot.setMinimumWidth(500)
+
         self.oepsc_plot_layout = QHBoxLayout()
         self.lfp_plot_layout = QHBoxLayout()
         self.o_info_layout = QFormLayout()

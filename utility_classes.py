@@ -15,13 +15,30 @@ from tkinter import S
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import numpy as np
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import (QLineEdit, QSizePolicy, QWidget, QVBoxLayout,
-                             QListView, QSpinBox, QStyledItemDelegate,
-                             QHBoxLayout, QLabel, QAbstractItemDelegate)
-from PyQt5.QtCore import (QRunnable, pyqtSlot, QObject,
-                          pyqtSignal, Qt, QAbstractListModel,
-                          QPointF, QLineF, QSize)
+from PyQt5.QtWidgets import (
+    QLineEdit,
+    QSizePolicy,
+    QWidget,
+    QVBoxLayout,
+    QListView,
+    QSpinBox,
+    QStyledItemDelegate,
+    QScrollArea,
+    QHBoxLayout,
+    QLabel,
+    QAbstractItemDelegate,
+)
+from PyQt5.QtCore import (
+    QRunnable,
+    pyqtSlot,
+    QObject,
+    pyqtSignal,
+    Qt,
+    QAbstractListModel,
+    QPointF,
+    QLineF,
+    QSize,
+)
 import pyqtgraph as pg
 from scipy.fftpack import sc_diff
 from sklearn.neighbors import KernelDensity
@@ -30,35 +47,47 @@ import yaml
 
 from utilities import load_scanimage_file
 
+
 class NumpyEncoder(json.JSONEncoder):
-    '''
+    """
     Special json encoder for numpy types. Numpy types are not accepted by the
     json encoder and need to be converted to python types.
-    '''
-    
+    """
+
     def default(self, obj):
-        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
-                            np.int16, np.int32, np.int64, np.uint8,
-                            np.uint16, np.uint32, np.uint64)):
+        if isinstance(
+            obj,
+            (
+                np.int_,
+                np.intc,
+                np.intp,
+                np.int8,
+                np.int16,
+                np.int32,
+                np.int64,
+                np.uint8,
+                np.uint16,
+                np.uint32,
+                np.uint64,
+            ),
+        ):
             return int(obj)
-        elif isinstance(obj, (np.float_, np.float16, np.float32,
-                              np.float64)):
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
             return float(obj)
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
-        return json.JSONEncoder.default(self, obj)      
+        return json.JSONEncoder.default(self, obj)
 
 
 class LineEdit(QLineEdit):
-    '''
+    """
     This is a subclass of QLineEdit that returns values that are usable for
     Python.
-    '''
-    
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
-    
-        
+
     def toInt(self):
         if len(self.text()) == 0:
             x = None
@@ -66,35 +95,34 @@ class LineEdit(QLineEdit):
             x = int(self.text())
         return x
 
-
     def toText(self):
         if len(self.text()) == 0:
             x = None
         else:
             x = self.text()
         return x
-    
-    
+
     def toFloat(self):
         if len(self.text()) == 0:
             x = None
         else:
             x = float(self.text())
         return x
-    
-    
+
+
 class SaveWorker(QRunnable):
-    '''
+    """
     This class is used to create a 'runner' in a different thread than the
     main GUI. This prevents that GUI from freezing during saving.
-    '''
+    """
+
     def __init__(self, save_filename, dictionary):
         super().__init__()
-        
+
         self.save_filename = save_filename
         self.dictionary = dictionary
         self.signals = WorkerSignals()
-        
+
     @pyqtSlot()
     def run(self):
         for i, key in enumerate(self.dictionary.keys()):
@@ -102,25 +130,27 @@ class SaveWorker(QRunnable):
             with open(f"{self.save_filename}_{x.name}.json", "w") as write_file:
                 json.dump(x.__dict__, write_file, cls=NumpyEncoder)
             self.signals.progress.emit(
-                int((100*(i+1)/len(self.dictionary.keys()))))
-        self.signals.finished.emit('Saved')
-        
+                int((100 * (i + 1) / len(self.dictionary.keys())))
+            )
+        self.signals.finished.emit("Saved")
+
 
 class MiniSaveWorker(QRunnable):
-    '''
+    """
     This class is used to create a 'runner' in a different thread than the
     main GUI. This prevents that GUI from freezing during saving. This is a
     variant of the SaveWorker class used for the MiniAnalysisWidgit since a
     specific function needs to be run on the mini-dictionary to prevent it
     from taking up a lot of space in the json file.
-    '''
+    """
+
     def __init__(self, save_filename, dictionary):
         super().__init__()
-        
+
         self.save_filename = save_filename
         self.dictionary = dictionary
         self.signals = WorkerSignals()
-        
+
     @pyqtSlot()
     def run(self):
         for i, key in enumerate(self.dictionary.keys()):
@@ -129,53 +159,64 @@ class MiniSaveWorker(QRunnable):
             with open(f"{self.save_filename}_{x.name}.json", "w") as write_file:
                 json.dump(x.__dict__, write_file, cls=NumpyEncoder)
             self.signals.progress.emit(
-                int((100*(i+1)/len(self.dictionary.keys()))))
-        self.signals.finished.emit('Saved')
+                int((100 * (i + 1) / len(self.dictionary.keys())))
+            )
+        self.signals.finished.emit("Saved")
 
 
 class WorkerSignals(QObject):
-    '''
-    This is general 'worker' that provides feedback from the 'runner' to the
-    main GUI thread to prevent it from freezing.
-    '''
+    """
+    This is general 'worker' that provides feedback from events to the window. 
+    The 'worker also provides a 'runner' to the main GUI thread to prevent it
+    from freezing when there are long running events.
+    """
+
+    dictionary = pyqtSignal(dict)
     progress = pyqtSignal(int)
     finished = pyqtSignal(str)
 
 
 class StemPlotCanvas(FigureCanvasQTAgg):
-    '''
+    """
     Creating a matplotlib window this way 
-    '''
-    
-    def __init__(self, parent=None, width=3, height=2, dpi=300,
-        facecolor='black', axis_color='white', point_color='white'):
+    """
+
+    def __init__(
+        self,
+        parent=None,
+        width=3,
+        height=2,
+        dpi=300,
+        facecolor="black",
+        axis_color="white",
+        point_color="white",
+    ):
 
         self.facecolor = facecolor
         self.axis_color = axis_color
         self.point_color = point_color
-        
+
         fig = Figure(figsize=(width, height), dpi=dpi, facecolor=self.facecolor)
         self.axes = fig.add_subplot(111)
         self.axes.set_facecolor(self.facecolor)
-        self.axis.tick_params(axis='both', color=self.axis_color)
-        self.axis.xaxis.label.set_color(self.axis_color) 
-        self.axis.yaxis.label.set_color(self.axis_color) 
-        self.axis.spines[['top', 'left', 'right', 'bottom']].set_color(self.axis_color)
+        self.axis.tick_params(axis="both", color=self.axis_color)
+        self.axis.xaxis.label.set_color(self.axis_color)
+        self.axis.yaxis.label.set_color(self.axis_color)
+        self.axis.spines[["top", "left", "right", "bottom"]].set_color(self.axis_color)
 
         FigureCanvasQTAgg.__init__(self, fig)
         self.setParent(parent)
 
-        FigureCanvasQTAgg.setSizePolicy(self,
-                QSizePolicy.Expanding,
-                QSizePolicy.Expanding)
+        FigureCanvasQTAgg.setSizePolicy(
+            self, QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
         FigureCanvasQTAgg.updateGeometry(self)
 
-
     def plot(self, x, y, df):
-        self.axes.stemplot(x , y)
-        self.axes.set_title(f'{y} over time'.format(y))
+        self.axes.stemplot(x, y)
+        self.axes.set_title(f"{y} over time".format(y))
         self.draw()
-    
+
     def set_style(self, facecolor, axis_color, point_color):
         self.facecolor = facecolor
         self.axis_color = axis_color
@@ -183,15 +224,22 @@ class StemPlotCanvas(FigureCanvasQTAgg):
 
 
 class MplWidget(QWidget):
+    def __init__(
+        self,
+        parent=None,
+        width=3,
+        height=2,
+        dpi=300,
+        facecolor="black",
+        axis_color="white",
+        point_color="white",
+    ):
+        QWidget.__init__(self, parent)
 
-    def __init__(self, parent = None, width=3, height=2, dpi=300,
-        facecolor='black', axis_color='white', point_color='white'):
-        QWidget.__init__(self,parent)
-        
         self.facecolor = facecolor
         self.axis_color = axis_color
         self.point_color = point_color
-        
+
         self.fig = Figure(facecolor=self.facecolor)
         self.canvas = FigureCanvasQTAgg(self.fig)
 
@@ -200,22 +248,21 @@ class MplWidget(QWidget):
 
         self.canvas.axes = self.canvas.figure.add_subplot(111)
         self.canvas.axes.set_facecolor(self.facecolor)
-        self.canvas.axes.tick_params(axis='both', colors=self.axis_color,
-            labelsize=12)
-        self.canvas.axes.xaxis.label.set_color(self.axis_color) 
-        self.canvas.axes.yaxis.label.set_color(self.axis_color) 
-        self.canvas.axes.spines[['top', 'left', 'right', 'bottom']].set_color(self.axis_color)
-
+        self.canvas.axes.tick_params(axis="both", colors=self.axis_color, labelsize=12)
+        self.canvas.axes.xaxis.label.set_color(self.axis_color)
+        self.canvas.axes.yaxis.label.set_color(self.axis_color)
+        self.canvas.axes.spines[["top", "left", "right", "bottom"]].set_color(
+            self.axis_color
+        )
 
         self.setLayout(self.vertical_layout)
-    
-    
+
     def plot(self, x, y, df):
         self.canvas.axes.cla()
         self.canvas.draw()
-        self.canvas.axes.set_title(f'{y} over time', color=self.point_color)
-        stem, marker, base = self.canvas.axes.stem(df[x] , df[y])
-        stem.set(color=self.point_color , alpha=0.5)
+        self.canvas.axes.set_title(f"{y} over time", color=self.point_color)
+        stem, marker, base = self.canvas.axes.stem(df[x], df[y])
+        stem.set(color=self.point_color, alpha=0.5)
         marker.set(color=self.point_color)
         self.canvas.draw()
 
@@ -225,12 +272,12 @@ class MplWidget(QWidget):
 
 
 class DistributionPlot(QWidget):
-
-    def __init__(self, facecolor='black', axis_color='white',
-        point_color='white', parent=None):
+    def __init__(
+        self, facecolor="black", axis_color="white", point_color="white", parent=None
+    ):
 
         QWidget.__init__(self, parent)
-        
+
         self.facecolor = facecolor
         self.axis_color = axis_color
         self.point_color = point_color
@@ -244,29 +291,30 @@ class DistributionPlot(QWidget):
         self.canvas.axes = self.canvas.figure.add_subplot(111)
         self.setLayout(self.vertical_layout)
 
-    
     def plot(self, df, column):
         self.canvas.axes.cla()
         self.canvas.draw()
-        self.canvas.axes.set_title('{} distribution'.format(column))
+        self.canvas.axes.set_title("{} distribution".format(column))
         y = df[column].dropna().to_numpy()[:, np.newaxis]
         x = np.arange(y.shape[0])[:, np.newaxis]
-        kde = KernelDensity(kernel='gaussian')
-        bandwidth = np.logspace(-1,1, 20)
-        grid = GridSearchCV(kde, {'bandwidth': bandwidth})
+        kde = KernelDensity(kernel="gaussian")
+        bandwidth = np.logspace(-1, 1, 20)
+        grid = GridSearchCV(kde, {"bandwidth": bandwidth})
         grid.fit(y)
         kde = grid.best_estimator_
         logprob = kde.score_samples(x)
-        
-        self.canvas.axes.fill_between(np.arange(y.size), 0,
-                              np.exp(logprob), alpha=0.5)
+
+        self.canvas.axes.fill_between(np.arange(y.size), 0, np.exp(logprob), alpha=0.5)
         self.canvas.axes.set_xlim(min(y)[0], max(y)[0])
         self.canvas.axes.plot(x[:, 0], np.exp(logprob))
-        self.canvas.axes.plot(df[column].dropna().to_numpy(), 
-                              np.zeros(y.shape[0]), '|', color='black',
-                              alpha=0.15)
+        self.canvas.axes.plot(
+            df[column].dropna().to_numpy(),
+            np.zeros(y.shape[0]),
+            "|",
+            color="black",
+            alpha=0.15,
+        )
         self.canvas.draw()
-
 
     def clear(self):
         self.canvas.axes.cla()
@@ -277,25 +325,25 @@ class YamlWorker:
     @staticmethod
     def load_yaml(path=None):
         if path is None:
-            file_name = glob('*.yaml')[0]
+            file_name = glob("*.yaml")[0]
         else:
             file_name = path
-        with open(file_name, 'r') as file:
+        with open(file_name, "r") as file:
             yaml_file = yaml.safe_load(file)
         return yaml_file
-    
-    
+
     @staticmethod
     def save_yaml(dictionary, save_filename):
-        with open(f'{save_filename}.yaml', 'w') as file:
+        with open(f"{save_filename}.yaml", "w") as file:
             yaml.dump(dictionary, file)
 
 
 class ListView(QListView):
-    '''
+    """
     This is a custom listview that allows for drag and drop loading of
     scanimage matlab files.
-    '''
+    """
+
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
@@ -311,8 +359,7 @@ class ListView(QListView):
             e.accept()
         else:
             e.ignore()
-	
-    
+
     def dragMoveEvent(self, e):
         """
 		This function will detect the drag move event on the main window
@@ -321,8 +368,7 @@ class ListView(QListView):
             e.accept()
         else:
             e.ignore()
-	
-    
+
     def dropEvent(self, e):
         """
 		This function will enable the drop file directly on to the 
@@ -333,18 +379,19 @@ class ListView(QListView):
             e.accept()
             for url in e.mimeData().urls():
                 fname = PurePath(str(url.toLocalFile()))
-                if fname not in self.model().fname_list:
-                    self.model().add_acq(fname)
-            self.model().acq_list.sort(key=lambda x: int(x[0].split('_')[-1]))
-            self.model().fname_list.sort(key=lambda x: int(x.stem.split('_')[-1]))
+                if fname.suffix == ".mat":
+                    if fname.stem not in self.model().id_list:
+                        self.model().acq_list += [load_scanimage_file(fname)]
+                        self.model().id_list += [fname.stem]
+            self.model().acq_list.sort(key=lambda x: int(x[0].split("_")[-1]))
+            self.model().fname_list.sort(key=lambda x: int(x.stem.split("_")[-1]))
             self.model().layoutChanged.emit()
         else:
             e.ignore()
 
 
 class ListModel(QAbstractListModel):
-    def __init__(self, acq_list=None, fname_list=None,
-                 header_name='Acquisition(s)'):
+    def __init__(self, acq_list=None, fname_list=None, header_name="Acquisition(s)"):
         super().__init__()
         self.acq_list = acq_list or []
         self.fname_list = fname_list or []
@@ -354,13 +401,11 @@ class ListModel(QAbstractListModel):
         if role == Qt.ItemDataRole.DisplayRole:
             acq_component = self.acq_list[index.row()]
             return acq_component[0]
-    
 
     def headerData(self, name, role):
         if role == Qt.ItemDataRole.DisplayRole:
             name = self.header_name
             return name
-
 
     def add_acq(self, fname):
         acq_components = load_scanimage_file(fname)
@@ -377,46 +422,42 @@ class StringBox(QSpinBox):
         strings = []
         self.setStrings(strings)
 
-
     def setStrings(self, strings):
         strings = list(strings)
         self._strings = tuple(strings)
         self._values = dict(zip(strings, range(len(strings))))
-        self.setRange(0, len(strings)-1)
+        self.setRange(0, len(strings) - 1)
 
     def textFromValue(self, value):
-        
+
         # returning string from index
         # _string = tuple
         return self._strings[value]
 
 
 class ItemDelegate(QStyledItemDelegate):
-
     def __init__(self):
         super().__init__()
 
     def paint(self, painter, option, index):
-        acq_components = index.model().data(index,
-                            Qt.ItemDataRole.DisplayRole)
+        acq_components = index.model().data(index, Qt.ItemDataRole.DisplayRole)
         array = acq_components[2]
         width = option.rect.width()
         height = option.rect.height()
-        norm_array = (array-np.max(array))/np.min(array)*height+option.rect.y()
-        x_array = np.linspace(width*0.1, width, len(array)).tolist()
+        norm_array = (array - np.max(array)) / np.min(array) * height + option.rect.y()
+        x_array = np.linspace(width * 0.1, width, len(array)).tolist()
         zip_list = [QPointF(i, j) for i, j in zip(x_array, norm_array)]
         h = [QLineF(i, j) for i, j in zip(zip_list[:-1], zip_list[1:])]
         painter.setClipping(True)
         painter.setPen(Qt.GlobalColor.white)
         painter.drawLines(h)
-        
+
     def sizeHint(self, option, index):
         return QSize(100, 200)
 
 
 class ListModel2(QAbstractListModel):
-    def __init__(self, acq_list=None, id_list=None,
-    header_name='Acquisition(s)'):
+    def __init__(self, acq_list=None, id_list=None, header_name="Acquisition(s)"):
         super().__init__()
         self.acq_list = acq_list or []
         self.id_list = id_list or []
@@ -430,14 +471,13 @@ class ListModel2(QAbstractListModel):
     # def headerData(self, name, role):
     #     if role == Qt.ItemDataRole.DisplayRole:
     #         name = self.header_name
-            # return name
+    # return name
 
     def rowCount(self, index):
         return len(self.acq_list)
 
 
 class ListView2(QListView):
-
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
@@ -453,8 +493,7 @@ class ListView2(QListView):
             e.accept()
         else:
             e.ignore()
-	
-    
+
     def dragMoveEvent(self, e):
         """
 		This function will detect the drag move event on the main window
@@ -463,8 +502,7 @@ class ListView2(QListView):
             e.accept()
         else:
             e.ignore()
-	
-    
+
     def dropEvent(self, e):
         """
 		This function will enable the drop file directly on to the 
@@ -475,10 +513,12 @@ class ListView2(QListView):
             e.accept()
             for url in e.mimeData().urls():
                 fname = PurePath(str(url.toLocalFile()))
-                if fname.stem not in self.model().id_list:
-                    self.model().acq_list += [load_scanimage_file(fname)]
-                    self.model().id_list +=[fname.stem]
-            self.model().acq_list.sort(key=lambda x: int(x[0].split('_')[1]))
+                print(fname.suffix)
+                if fname.suffix == ".mat":
+                    if fname.stem not in self.model().id_list:
+                        self.model().acq_list += [load_scanimage_file(fname)]
+                        self.model().id_list += [fname.stem]
+            self.model().acq_list.sort(key=lambda x: int(x[0].split("_")[1]))
             self.model().layoutChanged.emit()
         else:
             e.ignore()
@@ -500,19 +540,63 @@ class CustomPlotWidget(QWidget):
     def __init__(self):
         self.layout = QHBoxLayout()
         self.plot = pg.PlotWidget()
-        self.plot.hideAxis('left')
-        self.plot.hideAxis('bottom')
+        self.plot.hideAxis("left")
+        self.plot.hideAxis("bottom")
         self.label = QLabel()
         self.layout.addWidget(self.label)
         self.layout.addWidget(self.plot)
-    
-    
+
     def setDisplayData(self, data_tuple):
         self.plot(data_tuple[2])
         self.label.setText(data_tuple[0])
 
 
-if __name__ == '__main__':
+class DragDropScrollArea(QScrollArea):
+    def __init__(self):
+        super().__init__()
+        self.setAcceptDrops(True)
+        self.signals = WorkerSignals()
+
+    def dragEnterEvent(self, e):
+        """
+        This function will detect the drag enter event from the mouse on the
+        main window
+        """
+        if e.mimeData().hasUrls:
+            e.accept()
+        else:
+            e.ignore()
+
+    def dragMoveEvent(self, e):
+        """
+		This function will detect the drag move event on the main window
+		"""
+        if e.mimeData().hasUrls:
+            e.accept()
+        else:
+            e.ignore()
+
+    @pyqtSlot()
+    def dropEvent(self, e):
+        """
+		This function will enable the drop file directly on to the 
+		main window. The file location will be stored in the self.filename
+		"""
+        if e.mimeData().hasUrls:
+            e.setDropAction(Qt.CopyAction)
+            e.accept()
+            url = e.mimeData().urls()[0]
+            fname = PurePath(str(url.toLocalFile()))
+            if fname.suffix == ".yaml":
+                pref_dict = YamlWorker.load_yaml(fname)
+                self.signals.dictionary.emit(pref_dict)
+            else:
+                e.ignore()
+        else:
+            e.ignore()
+
+
+if __name__ == "__main__":
     LineEdit()
     SaveWorker()
     MiniSaveWorker()
@@ -527,3 +611,4 @@ if __name__ == '__main__':
     ListModel2()
     ListView2()
     ItemDelegate()
+    DragDropScrollArea()

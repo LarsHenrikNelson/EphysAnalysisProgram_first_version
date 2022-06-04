@@ -1,0 +1,32 @@
+import os
+from os.path import expanduser
+import sys
+
+from PyQt5.QtWidgets import (QPushButton, QHBoxLayout, QComboBox,
+                             QFileDialog, QMainWindow, QWidget, QLabel, 
+                             QFormLayout, QApplication, QSpinBox,
+                             QToolBar, QAction)
+import qdarkstyle
+
+from utility_classes import (LineEdit, MiniSaveWorker, MplWidget,
+                             DistributionPlot, YamlWorker, ListView2,
+                             ListModel2, ItemDelegate)
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.load_widget = ListView2()
+        self.acq_model = ListModel2()
+        delegate = ItemDelegate()
+        self.load_widget.setItemDelegate(delegate)
+        self.load_widget.setModel(self.acq_model)
+        self.setCentralWidget(self.load_widget)
+
+app = QApplication([])
+app.setStyleSheet(qdarkstyle.load_stylesheet())
+window = MainWindow()
+window.show()
+sys.exit(app.exec_())

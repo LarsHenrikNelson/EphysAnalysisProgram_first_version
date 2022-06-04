@@ -526,9 +526,6 @@ class oEPSC(Acquisition):
 class CurrentClamp(Acquisition):
     def __init__(
         self,
-        sample_rate,
-        baseline_start,
-        baseline_end,
         filter_type="None",
         order=None,
         high_pass=None,
@@ -552,15 +549,6 @@ class CurrentClamp(Acquisition):
         self.ramp_end = int(ramp_end * self.s_r_c)
         self.x_array = np.arange(len(self.array)) / (self.s_r_c)
         self.threshold = threshold
-        self.get_delta_v()
-        self.find_spike_parameters()
-        self.first_spike_parameters()
-        self.plot_delta_v()
-        self.get_ramp_rheo()
-        self.find_AHP_peak()
-        self.spike_adaptation()
-        self.calculate_sfa_local_var()
-        self.calculate_sfa_divisor()
 
     def get_delta_v(self):
         """
@@ -681,12 +669,18 @@ class CurrentClamp(Acquisition):
                 # This takes the last value of an array of values that are
                 # less than the threshold. It was the most robust way to find
                 # the spike threshold time.
-                self.rheo_x = (
-                    np.argwhere(
-                        dv[self.pulse_start : peak_dv[0]] < (multiplier * baseline_std)
+                try:
+                    self.rheo_x = (
+                        np.argwhere(
+                            dv[self.pulse_start : peak_dv[0]]
+                            < (multiplier * baseline_std)
+                        )
+                        + self.pulse_start
+                    )[-1][0]
+                except:
+                    self.rheo_x = (
+                        np.argmin(dv[self.pulse_start : peak_dv[0]]) + self.pulse_start
                     )
-                    + self.pulse_start
-                )[-1][0]
 
                 # Find the spike_threshold using the timing found above
                 self.spike_threshold = self.array[self.rheo_x]
@@ -711,9 +705,6 @@ class CurrentClamp(Acquisition):
                 self.hertz_exact = len(self.peaks) / (
                     (self.ramp_end - self.rheo_x) / self.sample_rate
                 )
-        # return (self.rheo_x, self.spike_threshold, self.hertz_exact,
-        #         self.peaks, self.spike_width, self.spike_width_ave, self.ap_v,
-        #         self.iei)
 
     def first_spike_parameters(self):
         """
@@ -729,7 +720,7 @@ class CurrentClamp(Acquisition):
             # If there are no peaks fill in values with np.nan. This helps with
             # analysis further down the line as nan values are fairly easy to
             # work with.
-            self.spike_width = np.nan
+            self.width_comp = np.nan
             self.spike_width_ave = np.nan
             self.first_ap = [np.nan]
             self.indices = np.nan
@@ -749,22 +740,33 @@ class CurrentClamp(Acquisition):
                 # First using a mask to find the indices of each action
                 # potential.
                 self.indices = np.nonzero(mask[1:] != mask[:-1])[0]
-                if len(self.indices) > 2:
+                if self.indices.size > 2:
                     self.indices = self.indices[self.indices >= self.rheo_x]
-                    ap_index = [self.indices[0] - int(5 * self.s_r_c), self.indices[2]]
+                    if self.indices.size > 2:
+                        self.ap_index = [
+                            self.indices[0] - int(5 * self.s_r_c),
+                            self.indices[2],
+                        ]
+                    else:
+                        self.ap_index = [
+                            self.indices[0] - int(5 * self.s_r_c),
+                            self.pulse_end,
+                        ]
                 else:
-                    ap_index = [self.indices[0] - int(5 * self.s_r_c), self.pulse_end]
+                    self.ap_index = [
+                        self.indices[0] - int(5 * self.s_r_c),
+                        self.pulse_end,
+                    ]
 
                 # Extract the first action potential based on the ap_index.
-                self.first_ap = np.split(self.array, ap_index)[1]
+                self.first_ap = np.split(self.array, self.ap_index)[1]
 
                 # Create the masked array using the mask found earlier to find
                 # The pulse half-width.
                 masked_array[~mask] = self.spike_threshold
-                self.widths = signal.peak_widths(
+                self.width_comp = signal.peak_widths(
                     masked_array[: self.pulse_end], self.peaks, rel_height=0.5
-                )[0]
-                self.spike_width = self.widths[0] / self.s_r_c
+                )
 
             elif self.ramp == "1":
                 # To extract the first action potential and to find the
@@ -782,20 +784,52 @@ class CurrentClamp(Acquisition):
                 self.indices = np.nonzero(mask[1:] != mask[:-1])[0]
                 if len(self.indices) > 2:
                     self.indices = self.indices[self.indices >= self.rheo_x]
-                    ap_index = [self.indices[0] - int(5 * self.s_r_c), self.indices[2]]
+                    self.ap_index = [
+                        self.indices[0] - int(5 * self.s_r_c),
+                        self.indices[2],
+                    ]
                 else:
-                    ap_index = [self.indices[0] - int(5 * self.s_r_c), self.ramp_end]
+                    self.ap_index = [
+                        self.indices[0] - int(5 * self.s_r_c),
+                        self.ramp_end,
+                    ]
 
                 # Extract the first action potential based on the ap_index.
-                self.first_ap = np.split(self.array, ap_index)[1]
+                self.first_ap = np.split(self.array, self.ap_index)[1]
 
                 # Create the masked array using the mask found earlier to find
                 # The pulse half-width.
                 masked_array[~mask] = self.spike_threshold
-                self.widths = signal.peak_widths(
+                self.width_comp = signal.peak_widths(
                     masked_array[: self.ramp_end], self.peaks, rel_height=0.5
-                )[0]
-                self.spike_width = self.widths[0] / self.s_r_c
+                )
+
+    def spike_width(self):
+        if self.width_comp is not np.nan:
+            return self.width_comp[0][0] / self.s_r_c
+
+    def spike_width_y(self):
+        if self.width_comp is not np.nan:
+            return [self.width_comp[1][0], self.width_comp[1][0]]
+
+    def spike_width_x(self):
+        if self.width_comp is not np.nan:
+            return [
+                self.width_comp[2][0] / self.s_r_c,
+                self.width_comp[3][0] / self.s_r_c,
+            ]
+
+    def spike_x_array(self):
+        return self.x_array[self.ap_index[0] : self.ap_index[1]]
+
+    def spike_peaks_x(self):
+        return np.array(self.peaks) / self.s_r_c
+
+    def spike_peaks_y(self):
+        return self.array[self.peaks]
+
+    def plot_rheo_x(self):
+        return [self.rheo_x / self.s_r_c]
 
     def spike_adaptation(self):
         """
@@ -909,9 +943,27 @@ class CurrentClamp(Acquisition):
         be less arbitrary.
         """
         if self.peaks[0] is not np.nan:
-            self.ahp = np.min(self.array[self.peaks[0] :])
+            self.ahp_x = (
+                np.argmin(self.array[self.peaks[0] : self.ap_index[1]]) + self.peaks[0]
+            )
+            self.ahp_y = self.array[self.ahp_x]
         else:
-            self.ahp = np.nan
+            self.ahp_x = np.nan
+            self.ahp_y = np.nan
+
+    def plot_ahp_x(self):
+        return [self.ahp_x / self.s_r_c]
+
+    def analyze(self):
+        self.get_delta_v()
+        self.find_spike_parameters()
+        self.first_spike_parameters()
+        self.plot_delta_v()
+        self.get_ramp_rheo()
+        self.find_AHP_peak()
+        self.spike_adaptation()
+        self.calculate_sfa_local_var()
+        self.calculate_sfa_divisor()
 
     def create_dict(self):
         """
@@ -936,12 +988,13 @@ class CurrentClamp(Acquisition):
             "Spike_peak_volt": self.peak_volt,
             "Hertz": self.hertz_exact,
             "Spike_iei": self.iei_mean,
-            "Spike_width": self.spike_width,
+            "Spike_width": self.spike_width(),
             "Max_AP_vel": self.ap_v,
             "Spike_freq_adapt": self.spike_adapt,
             "Local_sfa": self.local_var,
             "Divisor_sfa": self.sfa_divisor,
-            "Peak_AHP": self.ahp,
+            "Peak_AHP (mV)": self.ahp_y,
+            "Peak_AHP (ms)": self.ahp_x,
             "Ramp_rheobase": self.ramp_rheo,
         }
         return current_clamp_dict
@@ -1065,11 +1118,18 @@ class MiniAnalysis(Acquisition):
         H = fft(kernel)
         if self.decon_type == "fft":
             self.deconvolved_array = np.real(ifft(fft(self.final_array) / H))
-        else:
+        elif self.decon_type == "weiner":
             self.deconvolved_array = np.real(
                 ifft(fft(self.final_array) * np.conj(H) / (H * np.conj(H) + lambd ** 2))
             )
-        # return self.deconvolved_array
+        elif self.decon_type == "convolve":
+            self.deconvolved_array = signal.convolve(
+                self.final_array, self.template, mode="same"
+            )
+        else:
+            self.deconvolved_array = signal.correlate(
+                self.final_array, self.template, mode="same"
+            )
 
     def wiener_filt(self):
         """
@@ -1093,21 +1153,23 @@ class MiniAnalysis(Acquisition):
         baselined_decon_array = self.deconvolved_array - np.mean(
             self.deconvolved_array[0:800]
         )
-        filt = signal.firwin2(
-            301,
-            freq=[0, 300, 600, self.sample_rate / 2],
-            gain=[1, 1, 0, 0],
-            window="hann",
-            fs=self.sample_rate,
-        )
-        y = signal.filtfilt(filt, 1.0, baselined_decon_array)
-        self.final_decon_array = signal.detrend(y, type="linear")
+        if self.decon_type == ("fft" or "weiner"):
+            filt = signal.firwin2(
+                301,
+                freq=[0, 300, 600, self.sample_rate / 2],
+                gain=[1, 1, 0, 0],
+                window="hann",
+                fs=self.sample_rate,
+            )
+            y = signal.filtfilt(filt, 1.0, baselined_decon_array)
+            self.final_decon_array = signal.detrend(y, type="linear")
+        else:
+            self.final_decon_array = self.deconvolved_array
         mu, std = stats.norm.fit(self.final_decon_array)
         peaks, _ = signal.find_peaks(
             self.final_decon_array, height=self.sensitivity * abs(std)
         )
         self.events = peaks.tolist()
-        return self.events, self.final_decon_array
 
     def create_events(self):
         """

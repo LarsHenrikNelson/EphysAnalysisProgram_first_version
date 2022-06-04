@@ -20,6 +20,8 @@ from PyQt5.QtCore import Qt
 import pyqtgraph as pg
 import qdarkstyle
 
+from utility_classes import WorkerSignals
+
 
 class PreferencesWidget(QWidget):
     def __init__(self):
@@ -64,6 +66,10 @@ class PreferencesWidget(QWidget):
         # Mini Analysis tab
         self.mini_tab = MiniAnalysisSettings()
         self.stackedlayout.addWidget(self.mini_tab)
+
+        # oEPSC analysis tab
+        self.oepsc_tab = OESPCAnalysisSettings()
+        self.stackedlayout.addWidget(self.oepsc_tab)
 
     def set_widget(self, clicked_item):
         if clicked_item.text() == "Application settings":
@@ -439,6 +445,53 @@ class MiniAnalysisSettings(QWidget):
             i.setMaximumWidth(30)
 
 
+class OESPCAnalysisSettings(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setSizeConstraint(QLayout.SetFixedSize)
+        self.layout.setColumnStretch(0, 0)
+        self.layout.setColumnStretch(1, 0)
+        self.setLayout(self.layout)
+        self.setObjectName("oEPSC analysis settings")
+
+        self.oEPSC_label = QLabel("oEPSC plot")
+        self.oEPSC_label.setStyleSheet("font-weight: bold")
+        self.layout.addWidget(self.oEPSC_label, 0, 0, 1, 2)
+        self.oEPSC_axis_label = QLabel("Axis", alignment=Qt.AlignRight)
+        self.layout.addWidget(self.oEPSC_axis_label, 1, 0)
+        self.oEPSC_axis_color = QPushButton()
+        self.oEPSC_axis_color.setObjectName("oEPSC plot axis")
+        self.oEPSC_axis_color.clicked.connect(
+            lambda checked: self.setColor(self.oEPSC_axis_color, "oEPSC plot", "axis")
+        )
+        self.layout.addWidget(self.oEPSC_axis_color, 1, 1)
+
+        self.oEPSC_bgd_label = QLabel("Background", alignment=Qt.AlignRight)
+        self.layout.addWidget(self.oEPSC_bgd_label, 1, 2)
+        self.oEPSC_bgd_color = QPushButton()
+        self.oEPSC_bgd_color.setObjectName("oEPSC plot background")
+        self.oEPSC_bgd_color.clicked.connect(
+            lambda checked: self.setColor(
+                self.oEPSC_bgd_color, "oEPSC plot", "background"
+            )
+        )
+        self.layout.addWidget(self.oEPSC_bgd_color, 1, 3)
+
+        self.oEPSC_acq_label = QLabel("Background", alignment=Qt.AlignRight)
+        self.layout.addWidget(self.oEPSC_acq_label, 1, 2)
+        self.oEPSC_acq_color = QPushButton()
+        self.oEPSC_acq_color.setObjectName("oEPSC plot background")
+        self.oEPSC_acq_color.clicked.connect(
+            lambda checked: self.setColor(
+                self.oEPSC_acq_color, "oEPSC plot", "background"
+            )
+        )
+        self.layout.addWidget(self.oEPSC_acq_color, 1, 3)
+
+
 if __name__ == "__main__":
     PreferencesWidget()
     MiniAnalysisSettings()
+    OESPCAnalysisSettings()
