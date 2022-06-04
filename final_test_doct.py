@@ -128,6 +128,7 @@ x.save_postsynaptic_events()
 with open("Cell_6_AD0_170.json", "w") as write_file:
     json.dump(x.__dict__, write_file, cls=NumpyEncoder)
 
+
 json_dict = {}
 file_list = glob("*.json")
 for i in range(len(file_list)):

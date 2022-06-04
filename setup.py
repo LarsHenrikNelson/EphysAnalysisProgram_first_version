@@ -20,7 +20,8 @@ install_deps = ['pyqtgraph',
          'statsmodels',
          'bottleneck',
          'numpy',
-         'xlsxwriter]
+         'xlsxwriter'
+        ]
 
 setuptools.setup(
     name="EphysAnalysisProgram",
