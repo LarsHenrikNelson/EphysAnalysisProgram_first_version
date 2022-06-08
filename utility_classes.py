@@ -380,11 +380,11 @@ class ListView(QListView):
             for url in e.mimeData().urls():
                 fname = PurePath(str(url.toLocalFile()))
                 if fname.suffix == ".mat":
-                    if fname.stem not in self.model().id_list:
+                    if fname.stem not in self.model().fname_list:
                         self.model().acq_list += [load_scanimage_file(fname)]
-                        self.model().id_list += [fname.stem]
+                        self.model().fname_list += [fname.stem]
             self.model().acq_list.sort(key=lambda x: int(x[0].split("_")[-1]))
-            self.model().fname_list.sort(key=lambda x: int(x.stem.split("_")[-1]))
+            self.model().fname_list.sort(key=lambda x: int(x.split("_")[-1]))
             self.model().layoutChanged.emit()
         else:
             e.ignore()

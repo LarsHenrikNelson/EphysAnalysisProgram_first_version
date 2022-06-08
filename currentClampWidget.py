@@ -401,12 +401,12 @@ class currentClampWidget(QWidget):
                         symbolBrush="b",
                     )
                     self.spike_plot.plot(
-                        x=acq_object.spike_x_array(), y=acq_object.first_ap
+                        x=acq_object.spike_x_array(), y=acq_object.first_ap,
                     )
                     self.spike_plot.plot(
                         x=acq_object.spike_width_x(),
                         y=acq_object.spike_width_y(),
-                        color="g",
+                        pen=pg.mkPen("g", width=4),
                     )
                     self.spike_plot.plot(
                         x=acq_object.plot_rheo_x(),
@@ -414,6 +414,13 @@ class currentClampWidget(QWidget):
                         pen=None,
                         symbol="o",
                         symbolBrush="b",
+                    )
+                    self.spike_plot.plot(
+                        x=acq_object.plot_ahp_x(),
+                        y=[acq_object.ahp_y],
+                        pen=None,
+                        symbol="o",
+                        symbolBrush="m",
                     )
         else:
             pass

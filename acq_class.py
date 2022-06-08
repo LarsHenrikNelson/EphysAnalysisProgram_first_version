@@ -612,7 +612,9 @@ class CurrentClamp(Acquisition):
         # peaks that are just noise.
         if self.ramp == "0":
             self.peaks, _ = signal.find_peaks(
-                self.array[: self.pulse_end], height=self.threshold, prominence=10
+                self.array[: self.pulse_end],
+                height=self.threshold,
+                prominence=int(1 * self.s_r_c),
             )
         elif self.ramp == "1":
             self.peaks, _ = signal.find_peaks(
@@ -656,24 +658,23 @@ class CurrentClamp(Acquisition):
             # threshold based on where the maximum velocity occurs of the first
             # spike occurs.
             if self.ramp == "0":
-                if (
-                    peak_dv[0] < self.pulse_start + 200
-                    and peak_dv[0] > self.pulse_start + 30
-                ):
-                    multiplier = 20
-                elif peak_dv[0] <= self.pulse_start + 30:
-                    multiplier = 22
-                elif peak_dv[0] >= self.pulse_start + 200:
-                    multiplier = 6
+                # if (
+                #     peak_dv[0] < self.pulse_start + 200
+                #     and peak_dv[0] > self.pulse_start + 30
+                # ):
+                #     multiplier = 20
+                # elif peak_dv[0] <= self.pulse_start + 30:
+                #     multiplier = 22
+                # elif peak_dv[0] >= self.pulse_start + 200:
+                #     multiplier = 6
 
                 # This takes the last value of an array of values that are
-                # less than the threshold. It was the most robust way to find
-                # the spike threshold time.
+                # less than the threshold of the second derivative. It was
+                # the most robust way to find the spike threshold time.
                 try:
                     self.rheo_x = (
                         np.argwhere(
-                            dv[self.pulse_start : peak_dv[0]]
-                            < (multiplier * baseline_std)
+                            np.gradient(dv[self.pulse_start : peak_dv[0]]) < (0.15)
                         )
                         + self.pulse_start
                     )[-1][0]
@@ -721,12 +722,10 @@ class CurrentClamp(Acquisition):
             # analysis further down the line as nan values are fairly easy to
             # work with.
             self.width_comp = np.nan
-            self.spike_width_ave = np.nan
             self.first_ap = [np.nan]
             self.indices = np.nan
             self.peak_volt = np.nan
         else:
-            self.peak_volt = self.array[self.peaks[0]]
             if self.ramp == "0":
                 # To extract the first action potential and to find the
                 # half-width of the spike you have create an array whose value
@@ -761,13 +760,6 @@ class CurrentClamp(Acquisition):
                 # Extract the first action potential based on the ap_index.
                 self.first_ap = np.split(self.array, self.ap_index)[1]
 
-                # Create the masked array using the mask found earlier to find
-                # The pulse half-width.
-                masked_array[~mask] = self.spike_threshold
-                self.width_comp = signal.peak_widths(
-                    masked_array[: self.pulse_end], self.peaks, rel_height=0.5
-                )
-
             elif self.ramp == "1":
                 # To extract the first action potential and to find the
                 # half-width of the spike you have create an array whose value
@@ -797,16 +789,28 @@ class CurrentClamp(Acquisition):
                 # Extract the first action potential based on the ap_index.
                 self.first_ap = np.split(self.array, self.ap_index)[1]
 
-                # Create the masked array using the mask found earlier to find
-                # The pulse half-width.
-                masked_array[~mask] = self.spike_threshold
-                self.width_comp = signal.peak_widths(
-                    masked_array[: self.ramp_end], self.peaks, rel_height=0.5
-                )
+    def find_spike_width(self):
+        # Create the masked array using the mask found earlier to find
+        # The pulse half-width.
+        if self.peaks[0] is not np.nan:
+            if self.ramp == "0":
+                end = self.pulse_end
+            else:
+                end = self.ramp_end
+            masked_array = self.array.copy()
+            mask = np.array(self.array > self.spike_threshold)
+            masked_array[~mask] = self.spike_threshold
+            self.width_comp = signal.peak_widths(
+                masked_array[:end], self.peaks, rel_height=0.5
+            )
+        else:
+            self.width_comp = np.nan
 
     def spike_width(self):
         if self.width_comp is not np.nan:
             return self.width_comp[0][0] / self.s_r_c
+        else:
+            return self.width_comp
 
     def spike_width_y(self):
         if self.width_comp is not np.nan:
@@ -943,16 +947,16 @@ class CurrentClamp(Acquisition):
         be less arbitrary.
         """
         if self.peaks[0] is not np.nan:
-            self.ahp_x = (
-                np.argmin(self.array[self.peaks[0] : self.ap_index[1]]) + self.peaks[0]
-            )
-            self.ahp_y = self.array[self.ahp_x]
+            dvv = np.gradient(np.gradient(self.first_ap))
+            base = np.argmin(dvv[::-1] < 0.5) * -1
+            self.ahp_y = self.first_ap[base]
+            self.ahp_x = self.spike_x_array()[base]
         else:
             self.ahp_x = np.nan
             self.ahp_y = np.nan
 
     def plot_ahp_x(self):
-        return [self.ahp_x / self.s_r_c]
+        return [self.ahp_x]
 
     def analyze(self):
         self.get_delta_v()
@@ -960,6 +964,7 @@ class CurrentClamp(Acquisition):
         self.first_spike_parameters()
         self.plot_delta_v()
         self.get_ramp_rheo()
+        self.find_spike_width()
         self.find_AHP_peak()
         self.spike_adaptation()
         self.calculate_sfa_local_var()
