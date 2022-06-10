@@ -11,7 +11,6 @@ Last updated on Wed Feb 16 12:33:00 2021
 from math import log10, floor
 from glob import glob
 import json
-from matplotlib.pyplot import prism
 
 import numpy as np
 import pandas as pd
@@ -32,6 +31,7 @@ from PyQt5.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QListWidget,
+    QDoubleSpinBox,
 )
 from PyQt5.QtGui import QIntValidator, QKeySequence, QShortcut, QFont
 from PyQt5.QtCore import QThreadPool, Qt
@@ -308,12 +308,17 @@ class MiniAnalysisWidget(QWidget):
         self.filter_type_label = QLabel("Filter Type")
         filters = [
             "remez_2",
+            "remez_1",
             "fir_zero_2",
-            "bessel",
             "fir_zero_1",
             "savgol",
             "median",
-            "remez_1",
+            "bessel",
+            "butterworth",
+            "elliptic",
+            "bessel_zero",
+            "butterworth_zero",
+            "elliptic_zero",
             "None",
         ]
         self.filter_selection = QComboBox(self)
@@ -367,11 +372,22 @@ class MiniAnalysisWidget(QWidget):
             "barthann",
             "nuttall",
             "blackman",
+            "tukey",
+            "kaiser",
+            "guassian",
+            "parzen",
+            "exponential",
         ]
         self.window_edit = QComboBox(self)
         self.window_edit.addItems(windows)
         self.window_edit.setObjectName("window_edit")
-        self.input_layout.addRow(self.window_label, self.window_edit)
+        self.window_extra = QDoubleSpinBox()
+        self.window_box = QWidget()
+        self.window_box_layout = QVBoxLayout()
+        self.window_box_layout.addWidget(self.window_edit)
+        self.window_box_layout.addWidget(self.window_extra)
+        self.window_box.setLayout(self.window_box_layout)
+        self.input_layout.addRow(self.window_label, self.window_box)
 
         self.polyorder_label = QLabel("Polyorder")
         self.polyorder_edit = LineEdit()
@@ -648,6 +664,10 @@ class MiniAnalysisWidget(QWidget):
             # The for loop creates each MiniAnalysis object. Enumerate returns
             # count which is used to adjust the progress bar and acq_components
             # comes from the acq_model.
+            if self.window_extra.value() == 0:
+                window = self.window_edit.currentText()
+            else:
+                window = (self.window_edit.currentText(), self.window_extra.value())
             for count, acq_components in enumerate(self.acq_model.acq_list):
                 x = MiniAnalysis(
                     acq_components=acq_components,
@@ -660,7 +680,7 @@ class MiniAnalysisWidget(QWidget):
                     high_width=self.high_width_edit.toInt(),
                     low_pass=self.low_pass_edit.toInt(),
                     low_width=self.low_width_edit.toInt(),
-                    window=self.window_edit.currentText(),
+                    window=window,
                     polyorder=self.polyorder_edit.toInt(),
                     template=self.template,
                     rc_check=self.rc_checkbox.isChecked(),

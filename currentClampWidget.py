@@ -7,10 +7,9 @@ Last updated on Wed Feb 16 12:33:00 2021
 @author: LarsNelson
 """
 from glob import glob
-from math import log10, floor, nan, isnan
+from math import log10, floor, isnan, nan
 
 import json
-from re import S
 import numpy as np
 from PyQt5.QtWidgets import (
     QLineEdit,
@@ -24,6 +23,7 @@ from PyQt5.QtWidgets import (
     QTabWidget,
     QProgressBar,
     QMessageBox,
+    QScrollArea,
 )
 from PyQt5.QtCore import QThreadPool
 import pyqtgraph as pg
@@ -31,8 +31,14 @@ import pyqtgraph as pg
 from acq_class import CurrentClamp, LoadCurrentClamp
 from final_analysis_classes import FinalCurrentClampAnalysis
 from load_classes import LoadCurrentClampData
-from utilities import load_scanimage_file
-from utility_classes import LineEdit, SaveWorker, YamlWorker, ListView, ListModel
+from utility_classes import (
+    LineEdit,
+    SaveWorker,
+    YamlWorker,
+    ListView,
+    ListModel,
+    DragDropScrollArea,
+)
 
 
 class currentClampWidget(QWidget):
@@ -45,6 +51,7 @@ class currentClampWidget(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.main_widget = QScrollArea()
         self.main_layout = QHBoxLayout()
         self.input_layout = QFormLayout()
         self.v_layout = QVBoxLayout()
@@ -104,6 +111,8 @@ class currentClampWidget(QWidget):
         self.analysis_buttons.addRow(self.reset_rejected_acqs_button)
 
         self.plot_widget = pg.PlotWidget()
+        self.plot_widget.setMaximumWidth(300)
+        self.plot_widget.setMinimumWidth(300)
         self.plot_layout.addWidget(self.plot_widget, 1)
 
         self.spike_plot = pg.PlotWidget()
@@ -112,6 +121,7 @@ class currentClampWidget(QWidget):
         self.plot_layout.addWidget(self.spike_plot)
 
         self.tabs = QTabWidget()
+        self.tabs.setUsesScrollButtons(True)
         self.analysis_layout.addWidget(self.tabs, 1)
 
         self.tabs.setStyleSheet("""QTabWidget::tab-bar {alignment: left;}""")

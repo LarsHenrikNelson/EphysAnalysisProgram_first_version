@@ -21,6 +21,11 @@ from filtering_functions import (
     fir_zero_1,
     fir_zero_2,
     bessel,
+    butterworth,
+    elliptic,
+    bessel_zero,
+    butterworth_zero,
+    elliptic_zero,
 )
 from utilities import return_acq_components
 
@@ -127,6 +132,46 @@ class Acquisition:
             self.filtered_array = median_filter(self.baselined_array, self.order)
         elif self.filter_type == "bessel":
             self.filtered_array = bessel(
+                self.baselined_array,
+                self.order,
+                self.sample_rate,
+                self.high_pass,
+                self.low_pass,
+            )
+        elif self.filter_type == "bessel_zero":
+            self.filtered_array = bessel_zero(
+                self.baselined_array,
+                self.order,
+                self.sample_rate,
+                self.high_pass,
+                self.low_pass,
+            )
+        elif self.filter_type == "butterworth":
+            self.filtered_array = butterworth(
+                self.baselined_array,
+                self.order,
+                self.sample_rate,
+                self.high_pass,
+                self.low_pass,
+            )
+        elif self.filter_type == "butterworth_zero":
+            self.filtered_array = butterworth_zero(
+                self.baselined_array,
+                self.order,
+                self.sample_rate,
+                self.high_pass,
+                self.low_pass,
+            )
+        elif self.filter_type == "elliptic":
+            self.filtered_array = elliptic(
+                self.baselined_array,
+                self.order,
+                self.sample_rate,
+                self.high_pass,
+                self.low_pass,
+            )
+        elif self.filter_type == "elliptic_zero":
+            self.filtered_array = elliptic_zero(
                 self.baselined_array,
                 self.order,
                 self.sample_rate,
