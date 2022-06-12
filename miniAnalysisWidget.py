@@ -41,7 +41,6 @@ from acq_class import MiniAnalysis, LoadMiniAnalysis
 from AcqInspectionWidget import AcqInspectionWidget
 from final_analysis_classes import FinalMiniAnalysis
 from load_classes import LoadMiniSaveData
-from utilities import load_scanimage_file
 from utility_classes import (
     LineEdit,
     MiniSaveWorker,
@@ -564,6 +563,7 @@ class MiniAnalysisWidget(QWidget):
         self.calc_param_clicked = False
         self.pref_dict = {}
         self.final_obj = None
+        self.need_to_save = False
 
         # Shortcuts
         self.del_mini_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
@@ -649,7 +649,12 @@ class MiniAnalysisWidget(QWidget):
         MiniAnalysis object needs to have analyze run. This was 
         chosen because it made the initial debugging easier.
         """
-        # self.reset()
+
+        self.need_to_save = True
+
+        if self.acq_dict:
+            self.acq_dict = {}
+
         self.analyze_acq_button.setEnabled(False)
         if len(self.template) == 0:
             self.create_template()
@@ -729,6 +734,7 @@ class MiniAnalysisWidget(QWidget):
 
         # Plots are cleared first otherwise new data is just appended to
         # the plot.
+        self.need_to_save = True
         self.p1.clear()
         self.p2.clear()
         self.mini_view_plot.clear()
@@ -899,6 +905,7 @@ class MiniAnalysisWidget(QWidget):
         self.calc_param_clicked = False
         self.template = []
         self.final_obj = None
+        self.need_to_save = False
 
     def update(self):
         """
@@ -940,6 +947,9 @@ class MiniAnalysisWidget(QWidget):
         """
         Function to plot a mini in the mini plot.
         """
+
+        self.need_to_save = True
+
         # if h in self.mini_spinbox_list:
         # Clear the last mini_point_clicked
         self.last_mini_point_clicked = []
@@ -1059,6 +1069,9 @@ class MiniAnalysisWidget(QWidget):
         None.
 
         """
+
+        self.need_to_save = True
+
         if len(self.last_mini_point_clicked) > 0:
             # X and Y point of the mini point that was clicked. The
             # x point needs to be adjusted back to samples for the
@@ -1110,6 +1123,9 @@ class MiniAnalysisWidget(QWidget):
         None.
 
         """
+
+        self.need_to_save = True
+
         if len(self.last_mini_point_clicked) > 0:
             # X and Y point of the mini point that was clicked. The
             # x point needs to be adjusted back to samples for the
@@ -1160,6 +1176,9 @@ class MiniAnalysisWidget(QWidget):
         -------
         None
         """
+
+        self.need_to_save = True
+
         # self.last_mini_deleted = \
         #     self.acq_object.postsynaptic_events[int(self.mini_number.text())]
         self.last_mini_deleted_number = self.mini_number.text()
@@ -1211,6 +1230,9 @@ class MiniAnalysisWidget(QWidget):
         on the main acquisition and clicking create new mini's button
         will run this function.
         """
+
+        self.need_to_save = True
+
         # Make sure that the last acq point that was clicked exists.
         if self.last_acq_point_clicked:
             x = self.last_acq_point_clicked[0].pos()[0] * self.acq_object.s_r_c
@@ -1268,6 +1290,9 @@ class MiniAnalysisWidget(QWidget):
         Deletes the current acquisition when the delete acquisition
         button is clicked.
         """
+
+        self.need_to_save = True
+
         self.recent_reject_acq = {}
 
         # Add acquisition to be deleted to the deleted acquisitions
@@ -1307,6 +1332,9 @@ class MiniAnalysisWidget(QWidget):
         self.acquisition_number.setValue(int(list(self.recent_reject_acq.keys())[0]))
 
     def final_analysis(self):
+
+        self.need_to_save = True
+
         if self.final_obj is not None:
             del self.final_obj
         self.calculate_parameters.setEnabled(False)
@@ -1429,6 +1457,7 @@ class MiniAnalysisWidget(QWidget):
             self.pbar.setFormat("Loaded")
 
     def save_as(self, save_filename):
+        self.need_to_save = False
         self.reset_button.setEnabled(False)
         self.pbar.setFormat("Saving...")
         self.pbar.setValue(0)
@@ -1456,6 +1485,13 @@ class MiniAnalysisWidget(QWidget):
             if i.objectName() != "":
                 line_edit_dict[i.objectName()] = i.text()
         self.pref_dict["line_edits"] = line_edit_dict
+
+        spinbox = self.findChildren(QLineEdit)
+        spinbox_dict = {}
+        for i in spinbox:
+            if i.objectName() != "":
+                spinbox_dict[i.objectName()] = i.text()
+        self.pref_dict["spibox"] = spinbox_dict
 
         combo_box_dict = {}
         combo_boxes = self.findChildren(QComboBox)

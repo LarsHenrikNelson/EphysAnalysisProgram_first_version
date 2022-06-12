@@ -264,8 +264,10 @@ class currentClampWidget(QWidget):
         self.pref_dict = {}
         self.recent_reject_acq = {}
         self.calc_param_clicked = False
+        self.need_to_save = False
 
     def del_selection(self):
+        self.need_to_save = True
         indexes = self.acq_view.selectedIndexes()
         if len(indexes) > 0:
             for index in sorted(indexes, reverse=True):
@@ -275,6 +277,7 @@ class currentClampWidget(QWidget):
             self.acq_view.clearSelection()
 
     def analyze(self):
+        self.need_to_save = True
         self.analyze_acq_button.setEnabled(False)
         if len(self.acq_model.acq_list) == 0:
             self.file_does_not_exist()
@@ -309,6 +312,7 @@ class currentClampWidget(QWidget):
             self.pbar.setFormat("Analysis finished")
 
     def reset(self):
+        self.need_to_save = False
         self.plot_widget.clear()
         self.spike_plot.clear()
         self.acq_dict = {}
@@ -333,10 +337,12 @@ class currentClampWidget(QWidget):
         self.recent_reject_acq = {}
         self.pref_dict = {}
         self.calc_param_clicked = False
+        self.need_to_save = False
         self.pbar.setValue(0)
         self.pbar.setFormat("")
 
     def spinbox(self, h):
+        self.need_to_save = True
         self.plot_widget.clear()
         self.spike_plot.clear()
         if int(self.acquisition_number.text()) in self.analysis_list:
@@ -444,6 +450,7 @@ class currentClampWidget(QWidget):
             return round(x, sig - int(floor(log10(abs(x)))) - 1)
 
     def delete_acq(self):
+        self.need_to_save = False
         self.recent_reject_acq = {}
         self.deleted_acqs[str(self.acquisition_number.text())] = self.acq_dict[
             str(self.acquisition_number.text())
@@ -456,16 +463,19 @@ class currentClampWidget(QWidget):
         self.analysis_list.remove(int(self.acquisition_number.text()))
 
     def reset_rejected_acqs(self):
+        self.need_to_save = False
         self.acq_dict.update(self.deleted_acqs)
         self.analysis_list += [int(i) for i in self.deleted_acqs.keys()]
         self.deleted_acqs = {}
         self.recent_reject_acq = {}
 
     def reset_recent_reject_acq(self):
+        self.need_to_save = False
         self.acq_dict.update(self.recent_reject_acq)
         self.analysis_list += [int(i) for i in self.recent_reject_acq.keys()]
 
     def final_analysis_button(self):
+        self.need_to_save = True
         self.calculate_parameters.setEnabled(False)
         self.calc_param_clicked = True
         self.final_obj = FinalCurrentClampAnalysis(self.acq_dict)
@@ -643,6 +653,7 @@ class currentClampWidget(QWidget):
         self.dlg.exec()
 
     def save_as(self, save_filename):
+        self.need_to_save = False
         self.pbar.setValue(0)
         self.pbar.setFormat("Saving...")
         self.create_pref_dict()
@@ -658,6 +669,7 @@ class currentClampWidget(QWidget):
         self.threadpool.start(self.worker)
 
     def load_preferences(self, file_name):
+        self.need_to_save = True
         load_dict = YamlWorker.load_yaml(file_name)
         self.set_preferences(load_dict)
 

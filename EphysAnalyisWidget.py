@@ -184,7 +184,8 @@ class MainWindow(QMainWindow):
             os.mkdir(p / h)
 
     def closeEvent(self, event):
-        self.save_as()
+        if self.central_widget.currentWidget().need_to_save:
+            self.save_as()
         event.accept()
 
 

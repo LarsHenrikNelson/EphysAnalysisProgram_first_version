@@ -496,6 +496,7 @@ class oEPSCWidget(QWidget):
         self.calc_param_clicked = True
         self.final_data = None
         self.inspection_widget = None
+        self.need_to_save = False
 
     def inspect_acqs(self, list_model):
         # Creates a separate window to view the loaded acquisitions
@@ -509,6 +510,7 @@ class oEPSCWidget(QWidget):
 
     def del_selection(self, list_model, list_view):
         # Deletes the selected acquisitions from the list
+        self.need_to_save = True
         indexes = list_view.selectedIndexes()
         if len(indexes) > 0:
             for index in sorted(indexes, reverse=True):
@@ -518,6 +520,7 @@ class oEPSCWidget(QWidget):
             list_view.clearSelection()
 
     def analyze(self):
+        self.need_to_save = True
         if len(self.oepsc_model.acq_list) == 0 and len(self.lfp_model.acq_list) == 0:
             self.file_does_not_exist()
         if len(self.oepsc_model.acq_list) != 0:
@@ -583,6 +586,7 @@ class oEPSCWidget(QWidget):
         # self.pbar.setFormat('Analysis finished')
 
     def acq_spinbox(self, h):
+        self.need_to_save = True
         self.acquisition_number.setDisabled(True)
         self.oepsc_plot.clear()
         self.lfp_plot.clear()
@@ -685,6 +689,7 @@ class oEPSCWidget(QWidget):
         self.set_fv_button.setEnabled(False)
         self.set_fp_button.setEnabled(False)
         self.final_data = None
+        self.need_to_save = False
 
     def oepsc_plot_clicked(self, item, points):
         if len(self.last_oepsc_point_clicked) > 0:
@@ -716,6 +721,7 @@ class oEPSCWidget(QWidget):
         None.
     
         """
+        self.need_to_save = True
         x = (
             self.last_lfp_point_clicked[0].pos()[0]
             * self.lfp_acq_dict[self.acquisition_number.text()].s_r_c
@@ -745,6 +751,7 @@ class oEPSCWidget(QWidget):
         None.
     
         """
+        self.need_to_save = True
         x = (
             self.last_lfp_point_clicked[0].pos()[0]
             * self.lfp_acq_dict[self.acquisition_number.text()].s_r_c
@@ -766,6 +773,7 @@ class oEPSCWidget(QWidget):
         self.last_lfp_point_clicked = []
 
     def set_oepsc_peak(self):
+        self.need_to_save = True
         x = (
             self.last_oepsc_point_clicked[0].pos()[0]
             * self.oepsc_acq_dict[self.acquisition_number.text()].s_r_c
@@ -792,6 +800,7 @@ class oEPSCWidget(QWidget):
         self.last_oepsc_point_clicked = []
 
     def delete_oepsc(self):
+        self.need_to_save = True
         self.oepsc_plot.clear()
         self.deleted_opesc_acqs[
             str(self.acquisition_number.text())
@@ -801,6 +810,7 @@ class oEPSCWidget(QWidget):
         self.oepsc_acqs_deleted += 1
 
     def delete_lfp(self):
+        self.need_to_save = True
         self.lfp_plot.clear()
         self.deleted_lfp_acqs[str(self.acquisition_number.text())] = self.lfp_acq_dict[
             str(self.acquisition_number.text())
@@ -824,6 +834,7 @@ class oEPSCWidget(QWidget):
             return round(x, sig - int(floor(log10(abs(x)))) - 1)
 
     def final_analysis(self):
+        self.need_to_save = True
         if self.final_data is not None:
             del self.final_data
         self.final_analysis_button.setEnabled(False)
@@ -843,6 +854,7 @@ class oEPSCWidget(QWidget):
         self.final_analysis_button.setEnabled(True)
 
     def save_as(self, save_filename):
+        self.need_to_save = False
         self.pbar.setValue(0)
         self.pbar.setFormat("Saving...")
         self.create_pref_dict()
