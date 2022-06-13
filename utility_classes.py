@@ -167,7 +167,7 @@ class MiniSaveWorker(QRunnable):
 class WorkerSignals(QObject):
     """
     This is general 'worker' that provides feedback from events to the window. 
-    The 'worker also provides a 'runner' to the main GUI thread to prevent it
+    The 'worker' also provides a 'runner' to the main GUI thread to prevent it
     from freezing when there are long running events.
     """
 
@@ -324,10 +324,11 @@ class DistributionPlot(QWidget):
 class YamlWorker:
     @staticmethod
     def load_yaml(path=None):
+        print(path)
         if path is None:
             file_name = glob("*.yaml")[0]
         else:
-            file_name = path
+            file_name = glob(path + "/*.yaml")[0]
         with open(file_name, "r") as file:
             yaml_file = yaml.safe_load(file)
         return yaml_file

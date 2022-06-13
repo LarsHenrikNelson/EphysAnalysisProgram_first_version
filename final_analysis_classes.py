@@ -116,7 +116,6 @@ class FinalMiniAnalysis:
         self.raw_df["Real time"] = (
             self.raw_df["Acq time stamp"] + self.raw_df["Event time (ms)"]
         )
-        self.raw_df["Ave event"] = pd.Series(self.average_mini)
 
     def extract_final_data(self):
         columns_for_analysis = [

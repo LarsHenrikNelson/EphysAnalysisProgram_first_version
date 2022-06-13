@@ -62,9 +62,9 @@ class currentClampWidget(QWidget):
         self.setLayout(self.main_layout)
         self.v_layout.addLayout(self.input_layout, 0)
         self.main_layout.addLayout(self.v_layout, 0)
-        self.main_layout.addLayout(self.analysis_layout, 1)
+        self.main_layout.addLayout(self.analysis_layout, 0)
         self.analysis_layout.addLayout(self.plot_layout, 1)
-        self.plot_layout.addLayout(self.analysis_buttons, 0)
+        self.plot_layout.addLayout(self.analysis_buttons, 1)
 
         # Analysis layout setup
         self.acquisition_number_label = QLabel("Acq number")
@@ -111,12 +111,10 @@ class currentClampWidget(QWidget):
         self.analysis_buttons.addRow(self.reset_rejected_acqs_button)
 
         self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setMaximumWidth(300)
         self.plot_widget.setMinimumWidth(300)
-        self.plot_layout.addWidget(self.plot_widget, 1)
+        self.plot_layout.addWidget(self.plot_widget)
 
         self.spike_plot = pg.PlotWidget()
-        self.spike_plot.setMaximumWidth(300)
         self.spike_plot.setMinimumWidth(300)
         self.plot_layout.addWidget(self.spike_plot)
 
@@ -252,6 +250,8 @@ class currentClampWidget(QWidget):
 
         self.threadpool = QThreadPool()
 
+        self.set_width()
+
         self.acq_dict = {}
         self.analysis_list = []
         self.file_list = []
@@ -265,6 +265,15 @@ class currentClampWidget(QWidget):
         self.recent_reject_acq = {}
         self.calc_param_clicked = False
         self.need_to_save = False
+
+    def set_width(self):
+        line_edits = self.findChildren(QLineEdit)
+        for i in line_edits:
+            i.setMinimumWidth(70)
+
+        push_buttons = self.findChildren(QPushButton)
+        for i in push_buttons:
+            i.setMinimumWidth(100)
 
     def del_selection(self):
         self.need_to_save = True
@@ -589,11 +598,12 @@ class currentClampWidget(QWidget):
             array = df[i]
             self.ramp_ap_plot.plot(np.arange(len(array)) / 10, array, name=f"Epoch {i}")
 
-    def open_files(self):
+    def open_files(self, directory):
         self.analyze_acq_button.setEnabled(False)
         self.calculate_parameters.setEnabled(False)
+        load_dict = YamlWorker.load_yaml(directory)
         self.pbar.setFormat("Loading...")
-        file_list = glob("*.json")
+        file_list = glob(directory + "*.json")
         if not file_list:
             self.file_list = None
         else:
@@ -603,7 +613,7 @@ class currentClampWidget(QWidget):
                     x = LoadCurrentClamp(data)
                     self.acq_dict[str(x.acq_number)] = x
                     self.pbar.setValue(int(((i) / len(file_list)) * 100))
-            excel_file = glob("*.xlsx")[0]
+            excel_file = glob(directory + "*.xlsx")[0]
             self.final_obj = LoadCurrentClampData(excel_file)
             self.plot_spike_frequency(self.final_obj.final_df)
             self.plot_iv_curve(self.final_obj.iv_df)

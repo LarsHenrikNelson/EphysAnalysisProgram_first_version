@@ -147,10 +147,10 @@ class oEPSCWidget(QWidget):
         self.lfp_info_layout = QFormLayout()
         self.plot_layout = QHBoxLayout()
         self.oepsc_plot_layout.addLayout(self.o_info_layout, 0)
-        self.oepsc_plot_layout.addWidget(self.oepsc_plot, 15)
+        self.oepsc_plot_layout.addWidget(self.oepsc_plot, 1)
         self.lfp_plot_layout.addLayout(self.lfp_info_layout, 0)
         self.lfp_plot_layout.addWidget(self.lfp_plot, 1)
-        self.plot_layout.addLayout(self.oepsc_plot_layout, 15)
+        self.plot_layout.addLayout(self.oepsc_plot_layout, 1)
         self.plot_layout.addLayout(self.lfp_plot_layout, 1)
         self.tab2_layout.addLayout(self.plot_layout, 1)
 
@@ -881,12 +881,12 @@ class oEPSCWidget(QWidget):
             self.threadpool.start(worker2)
         self.pbar.setFormat("Data saved")
 
-    def open_files(self):
+    def open_files(self, directory):
         self.reset()
         self.pbar.setFormat("Loading...")
-        load_dict = YamlWorker.load_yaml()
+        load_dict = YamlWorker.load_yaml(directory)
         self.set_preferences(load_dict)
-        file_list = sorted(Path.glob("*json"))
+        file_list = sorted(Path.glob(directory + "*json"))
         if not file_list:
             self.file_list = None
         else:
@@ -904,7 +904,7 @@ class oEPSCWidget(QWidget):
         self.acquisition_number.setMinimum(min(self.analysis_list))
         self.acquisition_number.setValue(load_dict["Acq_number"])
         if load_dict["Final Analysis"]:
-            excel_file = glob("*.xlsx")[0]
+            excel_file = glob(directory + "*.xlsx")[0]
             save_values = pd.read_excel(excel_file, sheet_name=None)
             self.final_data = LoadEvokedCurrentData(save_values)
             self.raw_datatable.setData(self.final_data.raw_df.T.to_dict("dict"))

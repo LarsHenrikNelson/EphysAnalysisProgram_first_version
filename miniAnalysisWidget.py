@@ -1401,10 +1401,10 @@ class MiniAnalysisWidget(QWidget):
         )
         self.dlg.exec()
 
-    def open_files(self):
+    def open_files(self, directory):
         self.reset()
         self.pbar.setFormat("Loading...")
-        load_dict = YamlWorker.load_yaml()
+        load_dict = YamlWorker.load_yaml(directory)
         self.set_preferences(load_dict)
         self.reset_button.setEnabled(True)
         self.calculate_parameters.setEnabled(
@@ -1414,7 +1414,7 @@ class MiniAnalysisWidget(QWidget):
             load_dict["buttons"]["calculate_parameters"]
         )
         self.analyze_acq_button.setEnabled(load_dict["buttons"]["analyze_acq_button"])
-        file_list = glob("*.json")
+        file_list = glob(directory + "/*.json")
         if not file_list:
             self.file_list = None
             pass
@@ -1434,7 +1434,7 @@ class MiniAnalysisWidget(QWidget):
             self.acquisition_number.setMinimum(min(self.analysis_list))
             self.acquisition_number.setValue(int(load_dict["Acq_number"]))
             if load_dict["Final Analysis"]:
-                excel_file = glob("*.xlsx")[0]
+                excel_file = glob(directory + "*.xlsx")[0]
                 save_values = pd.read_excel(excel_file, sheet_name=None)
                 self.final_obj = LoadMiniSaveData(save_values)
                 self.ave_mini_plot.clear()

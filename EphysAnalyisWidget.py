@@ -137,15 +137,12 @@ class MainWindow(QMainWindow):
             self.central_widget.currentWidget().save_as(save_filename)
 
     def open_files(self):
-        self.directory = str(QFileDialog.getExistingDirectory)
-        if len(self.directory) == 0:
-            # This prevents an error from showing up when the path is not
-            # selected
-            pass
+        self.directory = str(QFileDialog.getExistingDirectory())
+        print(self.directory)
+        if self.directory:
+            self.central_widget.currentWidget().open_files(self.directory)
         else:
-            self.path_edit.setText("{}".format(self.directory))
-            os.chdir(self.directory)
-            self.central_widget.currentWidget().open_files()
+            pass
 
     def load_preferences(self):
         file_name, _ = QFileDialog.getOpenFileName(
