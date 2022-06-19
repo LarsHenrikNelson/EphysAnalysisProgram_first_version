@@ -373,7 +373,7 @@ class MiniAnalysisWidget(QWidget):
             "blackman",
             "tukey",
             "kaiser",
-            "guassian",
+            "gaussian",
             "parzen",
             "exponential",
         ]
@@ -470,7 +470,7 @@ class MiniAnalysisWidget(QWidget):
 
         self.decon_type_label = QLabel("Deconvolution type")
         self.decon_type_edit = QComboBox(self)
-        decon_list = ["weiner", "fft"]
+        decon_list = ["wiener", "fft"]
         self.decon_type_edit.addItems(decon_list)
         self.decon_type_edit.setObjectName("decon_type_edit")
         self.settings_layout.addRow(self.decon_type_label, self.decon_type_edit)
@@ -669,7 +669,10 @@ class MiniAnalysisWidget(QWidget):
             # The for loop creates each MiniAnalysis object. Enumerate returns
             # count which is used to adjust the progress bar and acq_components
             # comes from the acq_model.
-            if self.window_extra.value() == 0:
+            if (
+                self.window_edit.currentText() == "gaussian"
+                or self.window_edit.currentText() == "kaiser"
+            ):
                 window = self.window_edit.currentText()
             else:
                 window = (self.window_edit.currentText(), self.window_extra.value())
@@ -816,7 +819,7 @@ class MiniAnalysisWidget(QWidget):
                 range(len(self.acq_object.postsynaptic_events))
             )
             self.sort_index = list(np.argsort(self.acq_object.final_events))
-            # print(len(self.sort_index))
+
 
             # Plot the postsynaptic events.
             if len(self.acq_object.postsynaptic_events) > 0:
@@ -890,8 +893,7 @@ class MiniAnalysisWidget(QWidget):
         self.raw_df = {}
         self.save_values = []
         self.analyze_acq_button.setEnabled(True)
-        self.pbar.setValue(0)
-        self.pbar.setFormat("")
+        self.pbar.setFormat("Ready to analyze")
         self.pbar.setValue(0)
         self.calculate_parameters.setEnabled(True)
         self.raw_data_table.clear()
@@ -1434,7 +1436,7 @@ class MiniAnalysisWidget(QWidget):
             self.acquisition_number.setMinimum(min(self.analysis_list))
             self.acquisition_number.setValue(int(load_dict["Acq_number"]))
             if load_dict["Final Analysis"]:
-                excel_file = glob(directory + "*.xlsx")[0]
+                excel_file = glob(directory + "/*.xlsx")[0]
                 save_values = pd.read_excel(excel_file, sheet_name=None)
                 self.final_obj = LoadMiniSaveData(save_values)
                 self.ave_mini_plot.clear()

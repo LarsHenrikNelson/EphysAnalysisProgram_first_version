@@ -324,11 +324,10 @@ class DistributionPlot(QWidget):
 class YamlWorker:
     @staticmethod
     def load_yaml(path=None):
-        print(path)
         if path is None:
             file_name = glob("*.yaml")[0]
         else:
-            file_name = glob(path + "/*.yaml")[0]
+            file_name = glob(f"{path}/*.yaml")[0]
         with open(file_name, "r") as file:
             yaml_file = yaml.safe_load(file)
         return yaml_file

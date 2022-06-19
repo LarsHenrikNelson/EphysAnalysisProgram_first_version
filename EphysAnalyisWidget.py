@@ -138,7 +138,6 @@ class MainWindow(QMainWindow):
 
     def open_files(self):
         self.directory = str(QFileDialog.getExistingDirectory())
-        print(self.directory)
         if self.directory:
             self.central_widget.currentWidget().open_files(self.directory)
         else:

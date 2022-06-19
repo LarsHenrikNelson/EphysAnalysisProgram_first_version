@@ -601,7 +601,7 @@ class oEPSC(Acquisition):
                 amp_1, self.fit_tau, amp_2, tau_2 = popt
                 self.fit_decay_y = (
                     self.db_exp(decay_x, amp_1, self.fit_tau, amp_2, tau_2)
-                    + self.event_start_y
+                    + self.z_start_y
                 )
             else:
                 upper_bounds = [0, np.inf]
@@ -798,7 +798,7 @@ class CurrentClamp(Acquisition):
                 try:
                     self.rheo_x = (
                         np.argwhere(
-                            np.gradient(dv[self.pulse_start : peak_dv[0]]) < (0.15)
+                            np.gradient(dv[self.pulse_start : peak_dv[0]]) < (0.3)
                         )
                         + self.pulse_start
                     )[-1][0]
@@ -947,6 +947,11 @@ class CurrentClamp(Acquisition):
                 self.width_comp[3][0] / self.s_r_c,
             ]
 
+    def baseline_stability(self):
+        self.baseline_stability_ratio = np.mean(
+            self.array[: self.pulse_start]
+        ) / np.mean(self.array[self.pulse_end :])
+
     def spike_x_array(self):
         return self.x_array[self.ap_index[0] : self.ap_index[1]]
 
@@ -1071,8 +1076,9 @@ class CurrentClamp(Acquisition):
         be less arbitrary.
         """
         if self.peaks[0] is not np.nan:
-            dvv = np.gradient(np.gradient(self.first_ap))
-            base = np.argmin(dvv[::-1] < 0.5) * -1
+            peak = np.argmax(self.first_ap[: int(5 * self.s_r_c)])
+            dvv = np.gradient(np.gradient(self.first_ap[: int(peak + 5 * self.s_r_c)]))
+            base = (np.argmin(dvv[::-1] < 0.2) - int(5 * self.s_r_c)) * -1
             self.ahp_y = self.first_ap[base]
             self.ahp_x = self.spike_x_array()[base]
         else:
@@ -1082,8 +1088,12 @@ class CurrentClamp(Acquisition):
     def plot_ahp_x(self):
         return [self.ahp_x]
 
+    def first_peak_time(self):
+        return self.peaks[0] / self.s_r_c
+
     def analyze(self):
         self.get_delta_v()
+        self.baseline_stability()
         self.find_spike_parameters()
         self.first_spike_parameters()
         self.plot_delta_v()
@@ -1115,6 +1125,7 @@ class CurrentClamp(Acquisition):
             "Delta_v": self.delta_v,
             "Spike_threshold": self.spike_threshold,
             "Spike_peak_volt": self.peak_volt,
+            "Spike_time (ms)": self.first_peak_time(),
             "Hertz": self.hertz_exact,
             "Spike_iei": self.iei_mean,
             "Spike_width": self.spike_width(),
@@ -1125,6 +1136,7 @@ class CurrentClamp(Acquisition):
             "Peak_AHP (mV)": self.ahp_y,
             "Peak_AHP (ms)": self.ahp_x,
             "Ramp_rheobase": self.ramp_rheo,
+            "Baseline_stability": self.baseline_stability_ratio,
         }
         return current_clamp_dict
 
@@ -1142,7 +1154,7 @@ class MiniAnalysis(Acquisition):
         min_rise_time=1,
         min_decay_time=2,
         invert=False,
-        decon_type="weiner",
+        decon_type="wiener",
         curve_fit_decay=False,
         curve_fit_type="db_exp",
         *args,
@@ -1247,16 +1259,12 @@ class MiniAnalysis(Acquisition):
         H = fft(kernel)
         if self.decon_type == "fft":
             self.deconvolved_array = np.real(ifft(fft(self.final_array) / H))
-        elif self.decon_type == "weiner":
+        elif self.decon_type == "wiener":
             self.deconvolved_array = np.real(
                 ifft(fft(self.final_array) * np.conj(H) / (H * np.conj(H) + lambd ** 2))
             )
-        elif self.decon_type == "convolve":
-            self.deconvolved_array = signal.convolve(
-                self.final_array, self.template, mode="same"
-            )
         else:
-            self.deconvolved_array = signal.correlate(
+            self.deconvolved_array = signal.convolve(
                 self.final_array, self.template, mode="same"
             )
 
@@ -1282,10 +1290,10 @@ class MiniAnalysis(Acquisition):
         baselined_decon_array = self.deconvolved_array - np.mean(
             self.deconvolved_array[0:800]
         )
-        if self.decon_type == ("fft" or "weiner"):
+        if self.decon_type == "fft" or self.decon_type == "wiener":
             filt = signal.firwin2(
                 301,
-                freq=[0, 300, 600, self.sample_rate / 2],
+                freq=[0, 300, 300, self.sample_rate / 2],
                 gain=[1, 1, 0, 0],
                 window="hann",
                 fs=self.sample_rate,
@@ -1616,88 +1624,84 @@ class PostSynapticEvent:
             self.rise_rate = np.nan
         return self.rise_time, self.rise_rate
 
-
-def est_decay(self):
-    baselined_event = self.event_array - self.event_start_y
-    return_to_baseline = int(
-        (
-            np.argmax(
-                baselined_event[self.event_peak_x - self.array_start :]
-                >= (self.event_peak_y - self.event_start_y) * 0.25
+    def est_decay(self):
+        baselined_event = self.event_array - self.event_start_y
+        return_to_baseline = int(
+            (
+                np.argmax(
+                    baselined_event[self.event_peak_x - self.array_start :]
+                    >= (self.event_peak_y - self.event_start_y) * 0.25
+                )
             )
+            + (self.event_peak_x - self.array_start)
         )
-        + (self.event_peak_x - self.array_start)
-    )
-    decay_y = self.event_array[
-        self.event_peak_x - self.array_start : return_to_baseline
-    ]
-    if decay_y.size > 0:
-        self.est_tau_y = (
-            (self.event_peak_y - self.event_start_y) * (1 / np.exp(1))
-        ) + self.event_start_y
-        decay_x = self.x_array[
+        decay_y = self.event_array[
             self.event_peak_x - self.array_start : return_to_baseline
         ]
-        self.est_tau_x = np.interp(self.est_tau_y, decay_y, decay_x)
-        self.final_tau_x = (self.est_tau_x - self.event_peak_x) / self.s_r_c
-    else:
-        self.est_tau_x = np.nan
-        self.final_tau_x = np.nan
-        self.est_tau_y = np.nan
-
-
-def s_exp(self, x_array, amp, tau):
-    decay = amp * np.exp(-x_array / tau)
-    return decay
-
-
-def db_exp(self, x_array, a_fast, tau1, a_slow, tau2):
-    y = (a_fast * np.exp(-x_array / tau1)) + (a_slow * np.exp(-x_array / tau2))
-    return y
-
-
-def fit_decay(self, fit_type):
-    try:
-        baselined_event = self.event_array - self.event_start_y
-        amp = self.event_peak_x - self.array_start
-        decay_y = baselined_event[amp:]
-        decay_x = np.arange(len(decay_y))
-        if fit_type == "db_exp":
-            upper_bounds = [0, np.inf, 0, np.inf]
-            lower_bounds = [-np.inf, 0, -np.inf, 0]
-            init_param = np.array([self.event_peak_y, self.final_tau_x, 0, 0])
-            popt, pcov = curve_fit(
-                self.db_exp,
-                decay_x,
-                decay_y,
-                p0=init_param,
-                bounds=[lower_bounds, upper_bounds],
-            )
-            amp_1, self.fit_tau, amp_2, tau_2 = popt
-            self.fit_decay_y = (
-                self.db_exp(decay_x, amp_1, self.fit_tau, amp_2, tau_2)
-                + self.event_start_y
-            )
+        if decay_y.size > 0:
+            self.est_tau_y = (
+                (self.event_peak_y - self.event_start_y) * (1 / np.exp(1))
+            ) + self.event_start_y
+            decay_x = self.x_array[
+                self.event_peak_x - self.array_start : return_to_baseline
+            ]
+            self.est_tau_x = np.interp(self.est_tau_y, decay_y, decay_x)
+            self.final_tau_x = (self.est_tau_x - self.event_peak_x) / self.s_r_c
         else:
-            upper_bounds = [0, np.inf]
-            lower_bounds = [-np.inf, 0]
-            init_param = np.array([self.event_peak_y, self.final_tau_x])
-            popt, pcov = curve_fit(
-                self.s_exp,
-                decay_x,
-                decay_y,
-                p0=init_param,
-                bounds=[lower_bounds, upper_bounds],
-            )
-            amp_1, self.fit_tau = popt
-            self.fit_decay_y = (
-                self.s_exp(decay_x, amp_1, self.fit_tau) + self.event_start_y
-            )
-        self.fit_decay_x = (decay_x + self.event_peak_x) / self.s_r_c
-    except:
-        self.fit_decay_x = np.nan
-        self.fit_decay_y = np.nan
-        self.fit_tau = np.nan
+            self.est_tau_x = np.nan
+            self.final_tau_x = np.nan
+            self.est_tau_y = np.nan
+
+    def s_exp(self, x_array, amp, tau):
+        decay = amp * np.exp(-x_array / tau)
+        return decay
+
+    def db_exp(self, x_array, a_fast, tau1, a_slow, tau2):
+        y = (a_fast * np.exp(-x_array / tau1)) + (a_slow * np.exp(-x_array / tau2))
+        return y
+
+    def fit_decay(self, fit_type):
+        try:
+            baselined_event = self.event_array - self.event_start_y
+            amp = self.event_peak_x - self.array_start
+            decay_y = baselined_event[amp:]
+            decay_x = np.arange(len(decay_y))
+            if fit_type == "db_exp":
+                upper_bounds = [0, np.inf, 0, np.inf]
+                lower_bounds = [-np.inf, 0, -np.inf, 0]
+                init_param = np.array([self.event_peak_y, self.final_tau_x, 0, 0])
+                popt, pcov = curve_fit(
+                    self.db_exp,
+                    decay_x,
+                    decay_y,
+                    p0=init_param,
+                    bounds=[lower_bounds, upper_bounds],
+                )
+                amp_1, self.fit_tau, amp_2, tau_2 = popt
+                self.fit_decay_y = (
+                    self.db_exp(decay_x, amp_1, self.fit_tau, amp_2, tau_2)
+                    + self.event_start_y
+                )
+            else:
+                upper_bounds = [0, np.inf]
+                lower_bounds = [-np.inf, 0]
+                init_param = np.array([self.event_peak_y, self.final_tau_x])
+                popt, pcov = curve_fit(
+                    self.s_exp,
+                    decay_x,
+                    decay_y,
+                    p0=init_param,
+                    bounds=[lower_bounds, upper_bounds],
+                )
+                amp_1, self.fit_tau = popt
+                self.fit_decay_y = (
+                    self.s_exp(decay_x, amp_1, self.fit_tau) + self.event_start_y
+                )
+            self.fit_decay_x = (decay_x + self.event_peak_x) / self.s_r_c
+        except:
+            self.fit_decay_x = np.nan
+            self.fit_decay_y = np.nan
+            self.fit_tau = np.nan
 
     def find_event_parameters(self, y_array):
         if self.event_peak_x is np.nan:
@@ -1772,6 +1776,8 @@ class LoadLFP(LFP):
                 setattr(self, key, dictionary[key])
         for key in kwargs:
             setattr(self, key, kwargs[key])
+
+        self.slope_x = np.array(self.slope_x)
 
 
 class LoadoEPSC(oEPSC):

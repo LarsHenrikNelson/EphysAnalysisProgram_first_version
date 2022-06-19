@@ -51,8 +51,8 @@ class filterWidget(QWidget):
         self.p1.setMinimumWidth(500)
 
         self.v1 = self.plot_widget.addViewBox(row=0, col=1)
-        self.v1.setMaximumWidth(300)
-        self.v1.setMinimumWidth(300)
+        self.v1.setMaximumWidth(100)
+        self.v1.setMinimumWidth(100)
 
         self.legend = pg.LegendItem()
         self.v1.addItem(self.legend)
@@ -158,7 +158,7 @@ class filterWidget(QWidget):
             "blackman",
             "tukey",
             "kaiser",
-            "guassian",
+            "gaussian",
             "parzen",
             "exponential",
         ]
@@ -211,6 +211,13 @@ class filterWidget(QWidget):
 
     def plot_filt_button(self):
         self.set_acq_spinbox()
+        if (
+            self.window_edit.currentText() == "gaussian"
+            or self.window_edit.currentText() == "kaiser"
+        ):
+            window = self.window_edit.currentText()
+        else:
+            window = (self.window_edit.currentText(), self.window_extra.value())
         acq_components = self.acq_model.acq_list[self.acq_number.value()]
         h = Acquisition(
             acq_components=acq_components,
@@ -223,7 +230,7 @@ class filterWidget(QWidget):
             high_width=self.high_width_edit.toInt(),
             low_pass=self.low_pass_edit.toInt(),
             low_width=self.low_width_edit.toInt(),
-            window=self.window_edit.currentText(),
+            window=window,
             polyorder=self.polyorder_edit.toInt(),
         )
         h.filter_array()
@@ -241,7 +248,6 @@ class filterWidget(QWidget):
             "polyorder": self.polyorder_edit.toInt(),
         }
         self.filter_list += [filter_dict]
-        print(self.filter_list)
         if len(self.plot_list) == 0:
             pencil = pg.mkPen(color="w", alpha=int(0.75 * 255))
         else:

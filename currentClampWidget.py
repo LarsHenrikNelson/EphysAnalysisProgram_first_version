@@ -603,7 +603,7 @@ class currentClampWidget(QWidget):
         self.calculate_parameters.setEnabled(False)
         load_dict = YamlWorker.load_yaml(directory)
         self.pbar.setFormat("Loading...")
-        file_list = glob(directory + "*.json")
+        file_list = glob(f"{directory}/*.json")
         if not file_list:
             self.file_list = None
         else:
@@ -613,7 +613,7 @@ class currentClampWidget(QWidget):
                     x = LoadCurrentClamp(data)
                     self.acq_dict[str(x.acq_number)] = x
                     self.pbar.setValue(int(((i) / len(file_list)) * 100))
-            excel_file = glob(directory + "*.xlsx")[0]
+            excel_file = glob(f"{directory}/*.xlsx")[0]
             self.final_obj = LoadCurrentClampData(excel_file)
             self.plot_spike_frequency(self.final_obj.final_df)
             self.plot_iv_curve(self.final_obj.iv_df)

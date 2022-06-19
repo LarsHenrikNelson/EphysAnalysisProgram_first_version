@@ -8,16 +8,21 @@ Last edited on Tue Feb 16 10:47:30 2022
 
 Ephys analysis package version.
 """
-from scipy.io import loadmat, matlab
-import numpy as np
+from pathlib import PurePath
 import re
+from typing import Tuple
+
+import numpy as np
+from scipy.io import loadmat, matlab
 
 
-'''
+"""
 This function loads a matlab file and puts it into a dictionary that is easy
 to use in python. The function was written by  on Stack Overflow.
-'''
-def load_mat(filename):
+"""
+
+
+def load_mat(filename: str) -> dict:
     """
     This function should be called instead of direct scipy.io.loadmat
     as it cures the problem of not properly recovering python dictionaries
@@ -58,7 +63,7 @@ def load_mat(filename):
         (which are loaded as numpy ndarrays), recursing into the elements
         if they contain matobjects.
         """
-        if ndarray.dtype != 'float64':
+        if ndarray.dtype != "float64":
             elem_list = []
             for sub_elem in ndarray:
                 if isinstance(sub_elem, matlab.mio5_params.mat_struct):
@@ -72,7 +77,7 @@ def load_mat(filename):
             return ndarray
 
     data = loadmat(filename, struct_as_record=False, squeeze_me=True)
-    return _check_vars(data)        
+    return _check_vars(data)
 
 
 # def return_acq_components(name):
@@ -94,50 +99,55 @@ def load_mat(filename):
 #     return array, epoch, pulse_pattern, ramp, pulse_amp, time_stamp
 
 
-def return_acq_components(name):
-    matfile1 = load_mat(name)
-    array = matfile1[name]['data']
-    data_string = matfile1[name]['UserData']['headerString']
-    epoch = re.findall('epoch=(\D?\d*)', data_string)[0]
-    analog_input = matfile1[name]['UserData']['ai']
-    time_stamp = matfile1[name]['timeStamp']
+def return_acq_components(
+    path: PurePath,
+) -> Tuple[np.array, str, str, str, str, str, str]:
+    name = path.stem
+    acq_number = name.split("_")[-1]
+    matfile1 = load_mat(path)
+    array = matfile1[name]["data"]
+    data_string = matfile1[name]["UserData"]["headerString"]
+    epoch = re.findall("epoch=(\D?\d*)", data_string)[0]
+    analog_input = matfile1[name]["UserData"]["ai"]
+    time_stamp = matfile1[name]["timeStamp"]
     if analog_input == 0:
-        r = re.findall(r'pulseString_ao0=(.*?)state', data_string)[0]
-        pulse_pattern = re.findall('pulseToUse1=(\D?\d*)', data_string)[0]
+        r = re.findall(r"pulseString_ao0=(.*?)state", data_string)[0]
+        pulse_pattern = re.findall("pulseToUse1=(\D?\d*)", data_string)[0]
     elif analog_input == 1:
-        r = re.findall(r'pulseString_ao1=(.*?)state', data_string)[0]
-        pulse_pattern = re.findall('pulseToUse1=(\D?\d*)', data_string)[0]
-    ramp = re.findall(r'ramp=(\D?\d*);', r)[0]
-    pulse_amp = re.findall('amplitude=(\D?\d*)', r)[0]
+        r = re.findall(r"pulseString_ao1=(.*?)state", data_string)[0]
+        pulse_pattern = re.findall("pulseToUse1=(\D?\d*)", data_string)[0]
+    ramp = re.findall(r"ramp=(\D?\d*);", r)[0]
+    pulse_amp = re.findall("amplitude=(\D?\d*)", r)[0]
     return array, epoch, pulse_pattern, ramp, pulse_amp, time_stamp
 
 
-def load_scanimage_file(path):
-    '''
+def load_scanimage_file(
+    path: PurePath,
+) -> Tuple[np.array, str, str, str, str, str, str]:
+    """
     This function takes pathlib.PurePath object as the input.
-    '''
+    """
     name = path.stem
-    acq_number = name.split('_')[-1]
+    acq_number = name.split("_")[-1]
     matfile1 = load_mat(path)
-    array = matfile1[name]['data']
-    data_string = matfile1[name]['UserData']['headerString']
-    epoch = re.findall('epoch=(\D?\d*)', data_string)[0]
-    analog_input = matfile1[name]['UserData']['ai']
-    time_stamp = matfile1[name]['timeStamp']
+    array = matfile1[name]["data"]
+    data_string = matfile1[name]["UserData"]["headerString"]
+    epoch = re.findall("epoch=(\D?\d*)", data_string)[0]
+    analog_input = matfile1[name]["UserData"]["ai"]
+    time_stamp = matfile1[name]["timeStamp"]
     if analog_input == 0:
-        r = re.findall(r'pulseString_ao0=(.*?)state', data_string)[0]
-        pulse_pattern = re.findall('pulseToUse1=(\D?\d*)', data_string)[0]
+        r = re.findall(r"pulseString_ao0=(.*?)state", data_string)[0]
+        pulse_pattern = re.findall("pulseToUse1=(\D?\d*)", data_string)[0]
     elif analog_input == 1:
-        r = re.findall(r'pulseString_ao1=(.*?)state', data_string)[0]
-        pulse_pattern = re.findall('pulseToUse1=(\D?\d*)', data_string)[0]
-    ramp = re.findall(r'ramp=(\D?\d*);', r)[0]
-    pulse_amp = re.findall('amplitude=(\D?\d*)', r)[0]
-    return (name, acq_number, array, epoch, pulse_pattern, ramp, pulse_amp,
-            time_stamp)
+        r = re.findall(r"pulseString_ao1=(.*?)state", data_string)[0]
+        pulse_pattern = re.findall("pulseToUse1=(\D?\d*)", data_string)[0]
+    ramp = re.findall(r"ramp=(\D?\d*);", r)[0]
+    pulse_amp = re.findall("amplitude=(\D?\d*)", r)[0]
+    return (name, acq_number, array, epoch, pulse_pattern, ramp, pulse_amp, time_stamp)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     load_mat()
     return_acq_components()
     load_scanimage_file()
-    
+
